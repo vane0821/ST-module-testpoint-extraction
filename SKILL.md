@@ -1,6 +1,6 @@
 ﻿---
-name: module-st-testpoint-extraction
-description: 面向 ST 层面从模块 spec、寄存器列表、指令/任务描述、接口信号表、debug/performance spec 中提取模块验证 Testpoint。Use when the user asks to extract module-level testpoints for ST/module verification, including register access TP, configuration space TP, dynamic input parameter TP, debug capability TP, Level0/atomic performance TP, optional output-result coverage TP, coverage strategy mapping, or missing-input reports. Default output language is Chinese.
+name: module-st-testpoint-extraction-v2
+description: 面向 ST 层面从模块 spec、寄存器列表、指令/任务描述、接口信号表、debug/performance spec 中提取、整理或审查模块验证 Testpoint。Use when the user asks to generate complete or category-specific module verification TP, manage draft/complete/blocked lifecycle, map coverage strategy, review TP completeness without regenerating TP, or report missing inputs. Covers register access, configuration space, dynamic input parameters, debug, atomic performance, and optional output-result coverage. Default output language is Chinese.
 ---
 
 # Module ST Testpoint Extraction
@@ -266,6 +266,92 @@ LOAD.address: parameter_type=mem, coverage_space=address
 `range` 覆盖字段编码或立即数范围；`data` 覆盖参数承载的数据；`address` 覆盖内存地址空间；`format` 和 `mode` 仅在输入明确要求时使用。TP 必须显式列举编码、范围、边界或类别；小规模离散空间全覆盖，大空间仅使用输入明确的集合。当前不默认生成 opcode × parameter、parameter × parameter 或动态参数 × 配置空间组合。
 
 动态参数 TP 的字段职责为：TP_ID 定位；`verification_goal` 仅描述覆盖对象；`operation` 描述功能关系；`expected_result` 描述检查。示例 goal：`覆盖 ADD.rs1 参数编码范围。`
+
+### TP 描述
+
+动态输入参数 TP 与其他 category 使用一致的生命周期和覆盖策略要求。complete TP 使用：
+
+```text
+TP ID:
+...
+
+生命周期:
+complete
+
+来源对象:
+<instruction / task / descriptor / command>
+
+参数:
+<parameter>
+
+参数类型:
+<reg / imm / mem / ...>
+
+覆盖空间:
+<range / data / address / format / mode>
+
+验证目标:
+覆盖 <source>.<parameter> 的 <coverage_space>。
+
+参数扫描:
+显式列举编码、范围、边界或类别。
+
+操作:
+...
+
+预期结果:
+...
+
+覆盖策略:
+- testcase / covergroup / assertion: ...
+```
+
+示例：
+
+```text
+TP ID:
+ADD_DYN_RS1_RANGE_001
+
+生命周期:
+complete
+
+来源对象:
+ADD
+
+参数:
+rs1
+
+参数类型:
+reg
+
+覆盖空间:
+range
+
+验证目标:
+覆盖 ADD.rs1 参数编码范围。
+
+参数扫描:
+rs1 覆盖 x0~x31。
+
+操作:
+提交 rs1=x0~x31 的 ADD 指令。
+
+预期结果:
+全部合法 rs1 编码被接收并按指令规格执行。
+
+覆盖策略:
+- covergroup: cg_add_rs1_range
+```
+
+draft TP 使用相同格式，但 `覆盖策略` 可为 `null`；必须追加：
+
+```text
+缺失信息:
+- <HDL path / monitor mapping / sample event / 覆盖策略绑定>
+
+完成条件:
+- <补齐缺失信息后转为 complete 的条件>
+```
 
 ### 指令输入资料
 
