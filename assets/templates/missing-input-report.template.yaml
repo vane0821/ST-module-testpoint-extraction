@@ -1,0 +1,11 @@
+﻿missing_input_report:
+  status: "输入资料不足"
+  affected_tp_category: "配置空间 TP"
+  missing_information:
+    - field: "配置字段到 HDL signal/path 的映射"
+      impact: "无法判断配置写入后应观察哪个 DUT 行为或信号，因此不能形成可落地 TP。"
+      missing_detail: "缺少字段名、目标 HDL signal/path、采样事件或可观测状态。"
+  skipped_generation:
+    - "不生成受影响的配置空间 TP。"
+  rule: "只报告缺失信息，不得猜测缺失信息，不得用‘按输入件定义’或‘代表值’代替具体信息。"
+

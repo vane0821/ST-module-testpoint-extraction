@@ -1,0 +1,48 @@
+﻿module_st_input:
+  module:
+    name: "MU"
+    scope: "ST/module verification"
+  logic_information_blocks:
+    module_spec:
+      summary: "模块功能、clock/reset、可观测状态和验证边界"
+    register_basic_description:
+      registers:
+        - name: "CTRL"
+          offset: "0x0000"
+          width: 32
+          fields:
+            - name: "enable"
+              bit_range: "0"
+              reset_value: 0
+              access_by_master:
+                apb: "RW"
+    register_side_effect_description:
+      fields: []
+    field_constraints:
+      rules: []
+    config_to_hdl_mapping:
+      mappings:
+        - field: "CTRL.enable"
+          hdl_path: "dut.mu_ctrl_enable"
+          sample_event: "cfg_update_done"
+    instruction_or_task_description:
+      instructions: []
+      tasks: []
+      descriptors: []
+      commands: []
+    debug_description:
+      enable: null
+      commands: []
+      status: []
+      trigger_conditions: []
+    performance_spec:
+      scenarios: []
+      monitors: []
+      thresholds: []
+    optional_output_result_coverage:
+      requirements: []
+    observability:
+      clocks: []
+      resets: []
+      sample_conditions: []
+      status_register_mappings: []

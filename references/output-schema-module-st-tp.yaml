@@ -1,0 +1,68 @@
+﻿type: object
+required:
+  - module_st_testpoint_file
+properties:
+  module_st_testpoint_file:
+    type: object
+    required:
+      - module
+      - completeness_check
+      - testpoints
+      - missing_input_report
+    properties:
+      module:
+        type: string
+      completeness_check:
+        type: object
+      testpoints:
+        type: array
+        items:
+          type: object
+          required:
+            - tp_id
+            - category
+            - verification_goal
+            - input_basis
+            - expected_behavior
+            - coverage_strategy
+          properties:
+            tp_id:
+              type: string
+            category:
+              type: string
+              enum:
+                - "寄存器访问属性 TP"
+                - "配置空间 TP"
+                - "动态输入参数 TP"
+                - "Debug 能力 TP"
+                - "性能验证 TP"
+                - "可选输出结果覆盖 TP"
+            verification_goal:
+              type: string
+            input_basis:
+              type: array
+            stimulus_or_operation:
+              type:
+                - string
+                - "null"
+            expected_behavior:
+              type: string
+            observability:
+              type: array
+            coverage_strategy:
+              type: object
+              properties:
+                testcase:
+                  type:
+                    - string
+                    - "null"
+                covergroup:
+                  type:
+                    - string
+                    - "null"
+                assertion:
+                  type:
+                    - string
+                    - "null"
+      missing_input_report:
+        type: array

@@ -1,0 +1,43 @@
+﻿type: object
+required:
+  - module_st_input
+properties:
+  module_st_input:
+    type: object
+    required:
+      - module
+      - logic_information_blocks
+    properties:
+      module:
+        type: object
+        required:
+          - name
+          - scope
+        properties:
+          name:
+            type: string
+          scope:
+            type: string
+      logic_information_blocks:
+        type: object
+        properties:
+          module_spec:
+            type: object
+          register_basic_description:
+            type: object
+          register_side_effect_description:
+            type: object
+          field_constraints:
+            type: object
+          config_to_hdl_mapping:
+            type: object
+          instruction_or_task_description:
+            type: object
+          debug_description:
+            type: object
+          performance_spec:
+            type: object
+          optional_output_result_coverage:
+            type: object
+          observability:
+            type: object

@@ -1,0 +1,20 @@
+﻿module_st_testpoint_file:
+  module: "MU"
+  completeness_check:
+    status: "complete"
+    notes: []
+  testpoints:
+    - tp_id: "MU_REG_CTRL_ENABLE_RW_001"
+      category: "寄存器访问属性 TP"
+      verification_goal: "验证 CTRL.enable 字段对 apb master 的 RW 访问属性实现正确。"
+      input_basis:
+        - "register_basic_description.CTRL.enable"
+      stimulus_or_operation: "通过 apb master 对 CTRL.enable 写入 0 和 1，并读取回检。"
+      expected_behavior: "CTRL.enable 可被 apb 写入并读回一致值，复位后为 0。"
+      observability:
+        - "寄存器读回值"
+      coverage_strategy:
+        testcase: "mu_ctrl_enable_rw_test"
+        covergroup: "cg_mu_ctrl_enable_rw"
+        assertion: null
+  missing_input_report: []
