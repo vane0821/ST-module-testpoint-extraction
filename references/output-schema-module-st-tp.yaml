@@ -1,68 +1,32 @@
 ﻿type: object
-required:
-  - module_st_testpoint_file
+required: [module_st_testpoint_file]
 properties:
   module_st_testpoint_file:
     type: object
-    required:
-      - module
-      - completeness_check
-      - testpoints
-      - missing_input_report
+    required: [module, testpoints, blocked_items, missing_input_report, completeness_review]
     properties:
-      module:
-        type: string
-      completeness_check:
-        type: object
+      module: {type: string}
       testpoints:
         type: array
         items:
           type: object
-          required:
-            - tp_id
-            - category
-            - verification_goal
-            - input_basis
-            - expected_behavior
-            - coverage_strategy
+          required: [tp_id, category, lifecycle_status, verification_goal, input_basis, verification_scenario, expected_result]
           properties:
-            tp_id:
-              type: string
-            category:
-              type: string
-              enum:
-                - "寄存器访问属性 TP"
-                - "配置空间 TP"
-                - "动态输入参数 TP"
-                - "Debug 能力 TP"
-                - "性能验证 TP"
-                - "可选输出结果覆盖 TP"
-            verification_goal:
-              type: string
-            input_basis:
-              type: array
-            stimulus_or_operation:
-              type:
-                - string
-                - "null"
-            expected_behavior:
-              type: string
-            observability:
-              type: array
-            coverage_strategy:
-              type: object
-              properties:
-                testcase:
-                  type:
-                    - string
-                    - "null"
-                covergroup:
-                  type:
-                    - string
-                    - "null"
-                assertion:
-                  type:
-                    - string
-                    - "null"
-      missing_input_report:
-        type: array
+            tp_id: {type: string}
+            category: {type: string}
+            lifecycle_status: {type: string, enum: [complete, draft]}
+            source: {type: string}
+            parameter: {type: [string, 'null']}
+            parameter_type: {type: [string, 'null']}
+            coverage_space: {type: [string, 'null']}
+            verification_goal: {type: string}
+            input_basis: {type: array}
+            verification_scenario: {type: string}
+            operation: {type: [string, 'null']}
+            expected_result: {type: string}
+            coverage_strategy: {type: [object, 'null']}
+            missing_information: {type: array}
+            completion_criteria: {type: array}
+      blocked_items: {type: array}
+      missing_input_report: {type: array}
+      completeness_review: {type: object, description: '只检查 inventory，不触发 TP 生成。'}

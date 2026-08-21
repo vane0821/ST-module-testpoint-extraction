@@ -1,3 +1,3 @@
-display_name: ST 模块 Testpoint 提取
-short_description: 从模块资料提取 ST 层面验证 TP。
-default_prompt: 使用 ST 模块 Testpoint 提取 skill，根据模块 spec、寄存器、指令/任务、debug 和性能资料提取模块验证 TP。
+﻿display_name: ST 模块 Testpoint 提取 v2
+short_description: 从模块资料提取、整理和审查 ST 模块验证 TP。
+default_prompt: 使用 ST 模块 Testpoint 提取 v2，根据模块资料生成模块验证 TP，并标注 draft、complete 或 blocked 生命周期。

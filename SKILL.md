@@ -28,34 +28,37 @@ description: 面向 ST 层面从模块 spec、寄存器列表、指令/任务描
 - 生成通路级非法地址、地址对齐、访问宽度等 TP；这些默认由 Path Verification 覆盖。
 - 猜测输入资料没有定义的行为、非法处理、HDL path、采样条件、性能阈值或代表值。
 
-## 2. 输入资料与逻辑信息块
+## 2. TP 生成模式与生命周期
+
+各 TP category 独立判断、独立生成和独立输出；一个 category 缺资料不得阻断其他 category。根据请求选择完整生成、指定 category 生成、生命周期整理、覆盖策略映射、缺失输入报告或只读完备性审查；未指定时默认完整生成。
+
+提示词示例：
+
+- `根据这些模块资料生成完整的模块 ST TP，并标注生命周期。`
+- `仅生成 LOAD 指令的动态输入参数 TP。`
+- `将这份 TP 清单按 draft/complete/blocked 整理，并列出缺失输入。`
+- `审查 MU 的 TP inventory 是否覆盖全部适用 category；只报告缺口，不要生成新 TP。`
+
+每个候选项只有一种状态：
+
+- **complete**：验证目标、验证场景、预期结果和至少一项明确覆盖策略均已具备。
+- **draft**：验证目标和验证场景明确，但 HDL path、monitor mapping、sample event 或覆盖策略绑定尚未完整；必须列出缺失项和完成条件。
+- **blocked**：无法形成可验证场景；不生成验证 TP，仅记录 category/source、阻塞原因和恢复所需输入。
+## 3. 输入资料与逻辑信息块
 
 输入资料可以是一个或多个文件；同一个文件可以包含多个逻辑信息块，同一个逻辑信息块也可以分散在多个输入资料中。按逻辑信息块检查，不按物理文件数量检查。
 
-常见逻辑信息块：
-
-- 模块 spec。
-- 寄存器基础描述。
-- 寄存器 side effect 描述。
-- 字段约束 / 非规范写入规则。
-- 配置字段到 HDL signal/path 的映射。
-- 指令编码和指令功能描述 spec。
-- 任务 / descriptor / command 参数描述。
-- Debug 能力、命令、状态、触发时机表达式。
-- Performance spec、性能监测方式、测量边界、阈值。
-- 可选输出结果覆盖要求。
-- clock/reset、采样条件、可观测 signal、状态寄存器映射。
+常见逻辑信息块：模块 spec、寄存器基础描述和 side effect、字段约束、配置字段到 HDL signal/path 映射、指令编码及功能、任务/descriptor/command 参数、Debug、Performance、输出覆盖、clock/reset、采样条件和可观测映射。
 
 当生成某类 TP 所需信息缺失时：
 
-1. 不生成受影响 TP。
-2. 报告 `输入资料不足`。
-3. 只报告缺失内容、影响范围和缺失导致无法生成的 TP 类别。
-4. 不得猜测缺失信息，不得用“按输入件定义”“代表值”等空泛描述代替具体内容。
+1. 已能定义验证目标和验证场景，但缺 HDL path、monitor mapping、sample event 或覆盖策略绑定时，生成受影响的 **draft** TP。
+2. 无法定义验证目标或验证场景时，记录 **blocked** 项，不生成验证 TP。
+3. 不受影响的 category 继续生成。
+4. 每项缺失报告必须列出缺失内容、影响范围、当前状态和恢复所需输入；不得猜测或用空泛描述代替具体内容。
+## 4. 覆盖策略
 
-## 3. 覆盖策略
-
-TP 的覆盖策略使用结构化描述。只输出实际需要的条目，不强制三者同时存在：
+TP 的覆盖策略使用结构化描述。只输出实际需要的条目：
 
 ```text
 覆盖策略:
@@ -66,12 +69,20 @@ TP 的覆盖策略使用结构化描述。只输出实际需要的条目，不�
 
 规则：
 
-- 每个 TP 至少包含 `testcase`、`covergroup`、`assertion` 中一项。
-- 不得只写空标签；每个条目必须有可追踪的名称、构造方式或规则。
-- `assertion` 只在输入资料给出明确时序、安全、边界或状态约束时生成。
-- `covergroup` 需要明确覆盖对象、采样事件和相关 HDL / monitor 映射。
+- complete TP 至少包含 `testcase`、`covergroup`、`assertion` 中一项明确且可追踪的覆盖策略；不得只写空标签。
+- draft TP 允许覆盖策略未完整映射，也允许缺 HDL path、monitor mapping 或 sample event，但必须已有明确 `verification_goal` 和验证场景，并列出缺失项和完成条件。
+- blocked 项不生成 TP，也不填写覆盖策略。
+- assertion 只在输入资料给出明确时序、安全、边界或状态约束时生成。
+- covergroup 需要明确覆盖对象、采样事件和相关 HDL / monitor 映射。
+## 5. TP_ID 命名规则
 
-## 4. 寄存器访问属性 TP
+统一使用大写、下划线和三位序号。不得保留 `ST`、`REF`、`VAL` 或与本规则并行的旧命名。
+
+- 动态输入参数：`<source>_DYN_<parameter>_<coverage_space>_<index>`，例如 `ADD_DYN_RS1_RANGE_001`、`ADD_DYN_RS1_DATA_001`、`LOAD_DYN_ADDR_ADDRESS_001`。
+- 模块能力类：`<module>_<category>_<object>_<index>`，例如 `MU_REG_CTRL_ENABLE_RW_001`、`MU_CFG_CTRL_MODE_001`、`MU_DBG_STOP_001`、`MU_PERF_ADD_DUT_LAT_001`、`MU_OUT_STATUS_FLAG_001`。
+
+`source` 是 instruction/task/descriptor/command 等来源对象；模块能力类以模块名为来源。`category` 体现 TP 类别。
+## 6. 寄存器访问属性 TP
 
 寄存器访问属性 TP 独立于功能场景，用于验证寄存器表本身是否实现正确。不要把寄存器访问属性测试和寄存器配置生效行为混在一起。
 
@@ -155,7 +166,7 @@ APB 对 CTRL 中 RW 字段组执行 bit 0/1 写入覆盖。
 - testcase: reg_rw_bit_toggle_test
 ```
 
-## 5. 配置空间 TP
+## 7. 配置空间 TP
 
 配置空间 TP 描述软件预先设定的配置字段取值及组合约束。不引入请求、指令、任务或激励。
 
@@ -227,104 +238,39 @@ CTRL.mode 覆盖 0:normal、1:debug、2:perf、3:reserved。
 - covergroup: cg_mu_ctrl_cfg
 ```
 
-## 6. 动态输入参数 TP
+## 8. 动态输入参数 TP
 
-动态输入参数 TP 描述软件可提交到模块的动态输入空间，包括指令、任务、descriptor、command/request 参数。不要默认展开底层接口 transaction 信号；接口信号表主要用于 HDL path、采样条件、输入有效事件和输出观测点映射。
+动态输入参数 TP 描述软件可提交到模块的动态输入空间，包括 instruction、task、descriptor、command/request 参数。不要默认展开底层接口 transaction 信号；接口信号表主要用于 HDL path、采样条件、输入有效事件和输出观测点映射。
 
-### 指令输入资料
-
-指令输入需要：
-
-- 指令编码。
-- 指令功能描述 spec。
-- 指令字段到 HDL signal/path 的映射。
-- 指令有效接收 / decode / issue 采样事件。
-- clock/reset。
-- 非法 / reserved 编码处理规则。
-
-### 指令 TP 粒度
-
-指令 TP 包括：
-
-- opcode TP。
-- 每个操作数的引用扫描 TP。
-- 每个适用操作数的内容扫描 TP。
-
-操作数由以下信息定义：
-
-- 角色：src、dst、src0、src1、acc、mask、imm、addr、length 等。
-- 存储 / 承载类型：寄存器、内存、立即数等；若寄存器类型由指令天然决定，不必单独写。
-- 数据类型：定点 / 浮点、signed / unsigned、位宽或浮点格式。
-- 取值集合：必须显式列举合法、非法、边界或特殊值。
-
-源操作数通常需要内容扫描。目标操作数通常只做引用扫描；若指令读取旧目标值、acc 初值或输出结果由输入件要求覆盖，可生成内容扫描。
-
-### 指令 TP 原则
-
-- TP 必须显式列举覆盖的编码、取值、范围或类别。
-- 不得写“覆盖输入件定义的代表值集合”这类空泛描述。
-- 小规模离散编码空间全覆盖，如 5-bit 寄存器编号覆盖 x0~x31。
-- 大范围字段按输入资料显式给定的边界或类别覆盖。
-- 当前不考虑随机值。
-- 当前不默认生成 opcode × ops 或 ops 之间组合；组合关系交给随机侧、真实 workload 或项目指定场景单独维护。
-
-### TP 描述
+每个适用参数使用两个正交属性：
 
 ```text
-TP ID:
-...
-
-指令编码扫描:
-...
-
-预期结果:
-...
-
-覆盖策略:
-- covergroup: ...
+parameter_type: reg | imm | mem | mask | enum | index | ...
+coverage_space: range | data | address | format | mode | ...
 ```
+
+`parameter_type` 描述参数本身；`coverage_space` 描述扫描空间。不得使用 reference/content、`REF` 或 `VAL`。
 
 示例：
 
 ```text
-TP ID:
-RV_INSTR_ADD_RS1_REF_001
-
-指令编码扫描:
-扫描 ADD.rs1 编码，覆盖 x0~x31 全部源寄存器编号。
-
-预期结果:
-合法编码: x0~x31。非法编码: 无。
-
-覆盖策略:
-- covergroup: cg_rv_instr_add_encode
+ADD.rs1: parameter_type=reg, coverage_space=range
+  -> ADD_DYN_RS1_RANGE_001       # rs1 编码 x0~x31
+ADD.rs1: parameter_type=reg, coverage_space=data
+  -> ADD_DYN_RS1_DATA_001        # rs1 指向寄存器的数据集合
+LOAD.base: parameter_type=reg, coverage_space=data
+LOAD.offset: parameter_type=imm, coverage_space=range
+LOAD.address: parameter_type=mem, coverage_space=address
 ```
 
-```text
-TP ID:
-RV_INSTR_ADD_RS1_VAL_001
+`range` 覆盖字段编码或立即数范围；`data` 覆盖参数承载的数据；`address` 覆盖内存地址空间；`format` 和 `mode` 仅在输入明确要求时使用。TP 必须显式列举编码、范围、边界或类别；小规模离散空间全覆盖，大空间仅使用输入明确的集合。当前不默认生成 opcode × parameter、parameter × parameter 或动态参数 × 配置空间组合。
 
-操作数内容扫描:
-扫描 ADD.rs1 寄存器内容，覆盖 32-bit 定点值：0、1、-1、signed max(0x7FFF_FFFF)、signed min(0x8000_0000)、unsigned max(0xFFFF_FFFF)。
+动态参数 TP 的字段职责为：TP_ID 定位；`verification_goal` 仅描述覆盖对象；`operation` 描述功能关系；`expected_result` 描述检查。示例 goal：`覆盖 ADD.rs1 参数编码范围。`
 
-预期结果:
-合法内容: 0、1、-1、signed max、signed min、unsigned max。非法内容: 无。
+### 指令输入资料
 
-覆盖策略:
-- covergroup: cg_rv_instr_add_operand_value
-```
-
-### 任务 / descriptor / command
-
-若模块通过任务、descriptor 或 command 输入，按类似原则提取：
-
-- task_type / command_type 扫描。
-- 每个 descriptor 字段扫描。
-- payload/data 内容扫描，如输入资料明确要求。
-
-必须显式列举覆盖值、合法/非法分类和处理规则。
-
-## 7. Debug 能力 TP
+需要指令编码、功能描述、字段到 HDL signal/path 映射、有效接收/decode/issue 采样事件、clock/reset，以及非法/reserved 编码处理规则。任务/descriptor/command 按相同模型处理：先定义参数类型和覆盖空间，再显式列举值、合法/非法分类和处理规则。
+## 9. Debug 能力 TP
 
 Debug 属于异步输入级别能力。一个 debug 能力一个 TP。初始模板用于生成候选项，实际项目必须根据 debug spec、状态定义、命令接口和 testbench 信号迭代修正。
 
@@ -416,7 +362,7 @@ Breakpoint：
 - debug_disabled_bp_hit: !debug_enable && breakpoint_en && breakpoint_match
 ```
 
-## 8. 性能验证 TP
+## 10. 性能验证 TP
 
 性能验证描述原子工作场景性能。`Level0` 是外层规划概念，TP 内不反复写 Level0。
 
@@ -511,7 +457,7 @@ start = 软件提交 ADD 前读取 rdcycle；end = 软件观察到 ADD 完成后
 - testcase: mu_add_sw_latency_test
 ```
 
-## 9. 可选输出结果覆盖 TP
+## 11. 可选输出结果覆盖 TP
 
 输出结果覆盖 TP 完全由输入资料驱动。若输入资料没有提供输出结果覆盖要求，不生成输出结果覆盖 TP，也不报错。
 
@@ -534,7 +480,7 @@ TP ID:
 - covergroup: ...
 ```
 
-## 10. 压力测试与 Workload 边界
+## 12. 压力测试与 Workload 边界
 
 压力测试暂不作为当前 ST 层面 module 验证主线。
 
@@ -542,7 +488,7 @@ TP ID:
 
 如果用户明确提供压力测试输入件，可作为后续增强处理；不得自动 cross 配置、输入、debug、输出或性能空间。
 
-## 11. 输出顺序
+## 13. 输出顺序
 
 建议按以下顺序输出：
 
@@ -553,9 +499,16 @@ TP ID:
 5. Debug 能力 TP。
 6. 性能验证 TP。
 7. 可选输出结果覆盖 TP。
-8. 输入资料不足报告。
+8. draft TP 清单。
+9. blocked 项与输入资料不足报告。
+10. Module TP Completeness Review。
 
-## 12. 核心原则
+## 14. Module TP Completeness Review
+
+最后基于既有 TP inventory 审查 Register Access、Config Space、Dynamic Input、Debug、Performance、Output Result 六个适用 category。每项标记 `covered`、`draft`、`blocked`、`not_applicable` 或 `missing`，并列出现有 TP ID、缺口或阻塞原因。
+
+Completeness Review **只检查和报告**，不得修改、补充或重新生成已有 TP；发现 `missing` 仅输出待办或缺失资料。
+## 15. 核心原则
 
 1. 中文为主，避免不必要英文术语。
 2. TP 描述必须具体，不得使用“输入件定义的代表值”这类空泛描述。
@@ -565,3 +518,10 @@ TP ID:
 6. Debug 使用模板生成候选，并依赖项目输入件迭代。
 7. 性能 TP 的测量边界、监测方式和性能目标必须一致。
 8. 输出结果覆盖和压力测试均为可选输入件驱动项。
+9. category 独立生成；complete、draft、blocked 的覆盖策略要求不得混用。
+10. 动态参数使用 parameter type + coverage space，不得回退到 reference/content 模型。
+11. verification_goal 只描述覆盖目标；operation 与 expected result 分离。
+12. Completeness Review 只报告既有 inventory 的缺口，不生成新 TP。
+
+
+
