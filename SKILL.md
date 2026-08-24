@@ -79,12 +79,26 @@ TP 的覆盖策略使用结构化描述。只输出实际需要的条目：
 统一使用大写、下划线和三位序号。不得保留 `ST`、`REF`、`VAL` 或与本规则并行的旧命名。
 
 - 动态输入参数：`<source>_DYN_<parameter_or_group>_<coverage_space>_<index>`，例如 `VFMV_S_F_DYN_FS1_RANGE_001`、`ADD_DYN_SRC_REG_RANGE_001`、`ADD_DYN_SRC_DATA_002`。
-- 模块能力类：`<module>_<category>_<object>_<index>`，例如 `MU_REG_CTRL_ENABLE_RW_001`、`MU_CFG_CTRL_MODE_001`、`MU_DBG_STOP_001`、`MU_PERF_ADD_DUT_LAT_001`、`MU_OUT_STATUS_FLAG_001`。
+- 模块能力类：`<module>_<category>_<object>_<index>`，例如 `MU_REG_RW_001`、`MU_CFG_CTRL_MODE_001`、`MU_DBG_STOP_001`、`MU_PERF_ADD_DUT_LAT_001`、`MU_OUT_STATUS_FLAG_001`。
 
 `source` 只作为 TP_ID 中 instruction/task/descriptor/command 的来源对象；模块能力类以模块名为来源。动态 TP 不输出独立 `source` 字段。`parameter_or_group` 保留覆盖焦点，但不要求机械地一字段一个 TP。
 ## 6. 寄存器访问属性 TP
 
 寄存器访问属性 TP 独立于功能场景，用于验证寄存器表本身是否实现正确。不要把寄存器访问属性测试和寄存器配置生效行为混在一起。
+
+### TP_ID 与粒度
+
+Register Access category 的 TP_ID 使用 `<module>_REG_<object>_<index>`。其中 `object` 表示**字段访问类别**，不表示寄存器名或字段名；可使用 `RW`、`RO`、`RESET`、`SIDE_EFFECT`、`FIELD_CONSTRAINT` 等类别。
+
+```text
+TS_REG_RW_001
+TS_REG_RO_002
+TS_REG_RESET_003
+```
+
+不得把寄存器名、字段名、访问 Master 放进该 ID，例如不得生成 `TS_REG_DATAIN_TASK_RW_001` 或 `TS_REG_FINISH_RW_001`。寄存器和字段名称必须写在 `verification_goal`、`verification_scenario`、`expected_result` 和覆盖策略中。
+
+同一模块、同一 `REG` category 下，`index` 按现有 TP inventory 连续递增；后续新增 TP 不复用已有编号，也不因寄存器或字段对象变化重新从 `001` 编号。TP 粒度由访问类别和一致的访问语义决定，不由寄存器或字段数量决定。
 
 ### 输入检查
 
@@ -124,6 +138,19 @@ Side effect 描述可以来自寄存器表、模块 spec 或验证人员整理�
 - Side Effect 字段不纳入普通 bit 读写覆盖。
 - 字段约束不明确时，不生成会触发非规范写入的 TP。
 
+### RO 字段规则
+
+RO TP 的 `expected_result` 必须明确可读值及其来源：固定 reset value、固定硬件定义值，或输入资料定义的状态值集合。
+
+- 可读值依赖状态时，必须列出每个状态条件及对应可读值。
+- 输入资料未定义可读值或状态条件时，不生成 complete TP；目标和场景仍可确定时生成 draft TP 并列出缺失信息，否则记录为 blocked。
+
+### Register Access 与功能边界
+
+寄存器字段的业务描述不影响 Register Access TP。例如 `STREAM_NUM` 即使描述为“能接受最大的并行用户数量”，Register Access 只验证其字段写入和读回。
+
+以下内容属于 Config Space 或 Side Effect，而非 Register Access：写入后何时生效、合法配置范围、超出配置值的处理，以及配置导致的模块状态变化。不得因为字段名含有 `enable`、`mode`、`number`、`valid`、`finish` 等关键词自动生成功能 TP。
+
 ### 字段访问语义组合并
 
 同一目标模块、同一访问 Master、同一寄存器、同一测试类别下，读写规则和预期行为一致的字段可以合并为一个字段访问语义组。
@@ -154,16 +181,53 @@ TP ID:
 
 ```text
 TP ID:
-MU_APB_CTRL_RW_001
+TS_REG_RW_001
+
+验证目标:
+覆盖 DATAIN_TASK 和 STREAM_NUM 的 RW 字段访问属性。
 
 验证场景:
-APB 对 CTRL 中 RW 字段组执行 bit 0/1 写入覆盖。
+访问 Master 对 DATAIN_TASK 和 STREAM_NUM 的可写 bit 执行 0/1 写入，并读取对应字段。
 
 预期结果:
-每个可写 bit 均至少成功写入 0 和 1，读回值与对应字段写入值一致。
+每个可写 bit 支持写入 0 和 1；读回值与写入值一致。
 
 覆盖策略:
 - testcase: reg_rw_bit_toggle_test
+```
+
+```text
+TP ID:
+TS_REG_RO_002
+
+验证目标:
+覆盖 TASK_INIT_FINISH 的 RO 字段访问属性。
+
+验证场景:
+在输入资料定义的 TASK_INIT_FINISH=0（任务未完成）和 TASK_INIT_FINISH=1（任务完成）状态下读取该字段。
+
+预期结果:
+任务未完成状态读回 0，任务完成状态读回 1；可读值及状态条件均来自输入资料定义。
+
+覆盖策略:
+- testcase: reg_ro_task_init_finish_read_test
+```
+
+```text
+TP ID:
+TS_REG_RESET_003
+
+验证目标:
+覆盖 DATAIN_TASK、STREAM_NUM 与 TASK_INIT_FINISH 的字段 reset 属性。
+
+验证场景:
+施加输入资料定义的 reset，并读取上述字段。
+
+预期结果:
+各字段读回其输入资料定义的 reset value。
+
+覆盖策略:
+- testcase: reg_reset_value_test
 ```
 
 ## 7. 配置空间 TP

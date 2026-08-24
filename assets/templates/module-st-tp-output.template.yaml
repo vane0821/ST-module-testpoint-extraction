@@ -1,6 +1,33 @@
 ﻿module_st_testpoint_file:
   module: "MU"
   testpoints:
+    - tp_id: "TS_REG_RW_001"
+      lifecycle_status: "complete"
+      verification_goal: "覆盖 DATAIN_TASK 和 STREAM_NUM 的 RW 字段访问属性。"
+      verification_scenario: "访问 Master 对 DATAIN_TASK 和 STREAM_NUM 的可写 bit 执行 0/1 写入，并读取对应字段。"
+      expected_result: "每个可写 bit 支持写入 0 和 1；读回值与写入值一致。"
+      coverage_strategy:
+        testcase: "reg_rw_bit_toggle_test"
+      missing_information: []
+      completion_criteria: []
+    - tp_id: "TS_REG_RO_002"
+      lifecycle_status: "complete"
+      verification_goal: "覆盖 TASK_INIT_FINISH 的 RO 字段访问属性。"
+      verification_scenario: "在输入资料定义的 TASK_INIT_FINISH=0（任务未完成）和 TASK_INIT_FINISH=1（任务完成）状态下读取该字段。"
+      expected_result: "任务未完成状态读回 0，任务完成状态读回 1；可读值及状态条件均来自输入资料定义。"
+      coverage_strategy:
+        testcase: "reg_ro_task_init_finish_read_test"
+      missing_information: []
+      completion_criteria: []
+    - tp_id: "TS_REG_RESET_003"
+      lifecycle_status: "complete"
+      verification_goal: "覆盖 DATAIN_TASK、STREAM_NUM 与 TASK_INIT_FINISH 的字段 reset 属性。"
+      verification_scenario: "施加输入资料定义的 reset，并读取上述字段。"
+      expected_result: "各字段读回其输入资料定义的 reset value。"
+      coverage_strategy:
+        testcase: "reg_reset_value_test"
+      missing_information: []
+      completion_criteria: []
     - tp_id: "VFMV_S_F_DYN_FS1_RANGE_001"
       lifecycle_status: "complete"
       parameter: ["fs1"]
