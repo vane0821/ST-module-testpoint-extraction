@@ -1,32 +1,25 @@
 ﻿module_st_testpoint_file:
   module: "MU"
   testpoints:
-    - tp_id: "ADD_DYN_RS1_RANGE_001"
-      category: "动态输入参数 TP"
+    - tp_id: "VFMV_S_F_DYN_FS1_RANGE_001"
       lifecycle_status: "complete"
-      source: "ADD"
-      parameter: "RS1"
+      parameter: ["fs1"]
       parameter_type: "reg"
-      coverage_space: "range"
-      verification_goal: "覆盖 ADD.rs1 参数编码范围。"
-      input_basis: ["instruction_spec.ADD.rs1"]
-      verification_scenario: "提交 rs1=x0~x31 的 ADD 指令。"
-      operation: "ADD 使用 rs1 指定的源寄存器作为第一操作数。"
-      expected_result: "全部合法 rs1 编码被接收并按输入规格执行。"
-      coverage_strategy: {covergroup: "cg_add_rs1_range"}
+      verification_goal: "覆盖 VFMV_S_F 的 fs1 在 SRF_RD_P1_IDX 定义编码空间中的寄存器索引范围。"
+      verification_scenario: "向 VFMV_S_F 提交 fs1 覆盖 SRF_RD_P1_IDX 定义 bit range 的编码；在 SRF_RD_P1_IDX 输入处采样。未扫描字段取合法基线值。"
+      expected_result: "定义 bit range 内的所有编码均参与扫描；实际有效位、保留位和非法处理方式按照输入规格定义。"
+      coverage_strategy:
+        coverage_space: "range"
+        coverage_target: "SRF_RD_P1_IDX 的定义 bit range"
+        bins:
+          - name: "fs1_defined_range"
+            values: "定义 bit range 的覆盖集合"
       missing_information: []
       completion_criteria: []
     - tp_id: "MU_CFG_CTRL_MODE_001"
-      category: "配置空间 TP"
       lifecycle_status: "draft"
-      source: "MU"
-      parameter: null
-      parameter_type: null
-      coverage_space: null
       verification_goal: "覆盖 CTRL.mode 合法配置空间。"
-      input_basis: ["register_spec.CTRL.mode"]
       verification_scenario: "对 CTRL.mode 写入 normal、debug、perf。"
-      operation: null
       expected_result: "按输入规格生效。"
       coverage_strategy: null
       missing_information: ["CTRL.mode 到 HDL signal 的映射", "有效采样事件"]
@@ -41,4 +34,4 @@
     note: "只审查既有 TP inventory，不生成新 TP。"
     categories:
       - {category: "配置空间 TP", status: "draft", existing_tp_ids: ["MU_CFG_CTRL_MODE_001"], finding: "缺 HDL 映射和采样事件。"}
-      - {category: "动态输入参数 TP", status: "covered", existing_tp_ids: ["ADD_DYN_RS1_RANGE_001"], finding: "已覆盖 rs1 编码范围。"}
+      - {category: "动态输入参数 TP", status: "covered", existing_tp_ids: ["VFMV_S_F_DYN_FS1_RANGE_001"], finding: "已覆盖 fs1 定义编码范围。"}

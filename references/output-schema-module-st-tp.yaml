@@ -10,21 +10,26 @@ properties:
         type: array
         items:
           type: object
-          required: [tp_id, category, lifecycle_status, verification_goal, input_basis, verification_scenario, expected_result]
+          required: [tp_id, lifecycle_status, verification_goal, verification_scenario, expected_result]
           properties:
             tp_id: {type: string}
-            category: {type: string}
             lifecycle_status: {type: string, enum: [complete, draft]}
-            source: {type: string}
-            parameter: {type: [string, 'null']}
-            parameter_type: {type: [string, 'null']}
-            coverage_space: {type: [string, 'null']}
             verification_goal: {type: string}
-            input_basis: {type: array}
+            parameter: {type: [array, 'null']}
+            parameter_type: {type: [string, 'null']}
             verification_scenario: {type: string}
-            operation: {type: [string, 'null']}
             expected_result: {type: string}
-            coverage_strategy: {type: [object, 'null']}
+            coverage_strategy:
+              type: [object, 'null']
+              properties:
+                testcase: {type: [string, 'null']}
+                covergroup: {type: [string, 'null']}
+                assertion: {type: [string, 'null']}
+                coverage_space: {type: [string, 'null']}
+                coverage_target: {type: [string, 'null']}
+                bins: {type: [array, 'null']}
+                illegal_bins: {type: [array, 'null']}
+                ignore_bins: {type: [array, 'null']}
             missing_information: {type: array}
             completion_criteria: {type: array}
       blocked_items: {type: array}

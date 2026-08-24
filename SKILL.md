@@ -1,5 +1,5 @@
 ﻿---
-name: module-st-testpoint-extraction-v2
+name: module-st-testpoint-extraction
 description: 面向 ST 层面从模块 spec、寄存器列表、指令/任务描述、接口信号表、debug/performance spec 中提取、整理或审查模块验证 Testpoint。Use when the user asks to generate complete or category-specific module verification TP, manage draft/complete/blocked lifecycle, map coverage strategy, review TP completeness without regenerating TP, or report missing inputs. Covers register access, configuration space, dynamic input parameters, debug, atomic performance, and optional output-result coverage. Default output language is Chinese.
 ---
 
@@ -41,7 +41,7 @@ description: 面向 ST 层面从模块 spec、寄存器列表、指令/任务描
 
 每个候选项只有一种状态：
 
-- **complete**：验证目标、验证场景、预期结果和至少一项明确覆盖策略均已具备。
+- **complete**：验证目标、验证场景、预期结果和明确覆盖策略均已具备。动态参数 TP 的覆盖策略至少定义覆盖空间、覆盖对象和 bins；testcase、covergroup、assertion 的实际映射可后续独立维护。
 - **draft**：验证目标和验证场景明确，但 HDL path、monitor mapping、sample event 或覆盖策略绑定尚未完整；必须列出缺失项和完成条件。
 - **blocked**：无法形成可验证场景；不生成验证 TP，仅记录 category/source、阻塞原因和恢复所需输入。
 ## 3. 输入资料与逻辑信息块
@@ -69,7 +69,7 @@ TP 的覆盖策略使用结构化描述。只输出实际需要的条目：
 
 规则：
 
-- complete TP 至少包含 `testcase`、`covergroup`、`assertion` 中一项明确且可追踪的覆盖策略；不得只写空标签。
+- complete TP 必须有明确且可追踪的覆盖策略；寄存器、配置、Debug、性能和输出 TP 适用 `testcase`、`covergroup`、`assertion` 映射。动态参数 TP 在未建立 testcase 映射时，以覆盖空间、覆盖对象和 bins 作为覆盖策略。
 - draft TP 允许覆盖策略未完整映射，也允许缺 HDL path、monitor mapping 或 sample event，但必须已有明确 `verification_goal` 和验证场景，并列出缺失项和完成条件。
 - blocked 项不生成 TP，也不填写覆盖策略。
 - assertion 只在输入资料给出明确时序、安全、边界或状态约束时生成。
@@ -78,10 +78,10 @@ TP 的覆盖策略使用结构化描述。只输出实际需要的条目：
 
 统一使用大写、下划线和三位序号。不得保留 `ST`、`REF`、`VAL` 或与本规则并行的旧命名。
 
-- 动态输入参数：`<source>_DYN_<parameter>_<coverage_space>_<index>`，例如 `ADD_DYN_RS1_RANGE_001`、`ADD_DYN_RS1_DATA_001`、`LOAD_DYN_ADDR_ADDRESS_001`。
+- 动态输入参数：`<source>_DYN_<parameter_or_group>_<coverage_space>_<index>`，例如 `VFMV_S_F_DYN_FS1_RANGE_001`、`ADD_DYN_SRC_REG_RANGE_001`、`ADD_DYN_SRC_DATA_002`。
 - 模块能力类：`<module>_<category>_<object>_<index>`，例如 `MU_REG_CTRL_ENABLE_RW_001`、`MU_CFG_CTRL_MODE_001`、`MU_DBG_STOP_001`、`MU_PERF_ADD_DUT_LAT_001`、`MU_OUT_STATUS_FLAG_001`。
 
-`source` 是 instruction/task/descriptor/command 等来源对象；模块能力类以模块名为来源。`category` 体现 TP 类别。
+`source` 只作为 TP_ID 中 instruction/task/descriptor/command 的来源对象；模块能力类以模块名为来源。动态 TP 不输出独立 `source` 字段。`parameter_or_group` 保留覆盖焦点，但不要求机械地一字段一个 TP。
 ## 6. 寄存器访问属性 TP
 
 寄存器访问属性 TP 独立于功能场景，用于验证寄存器表本身是否实现正确。不要把寄存器访问属性测试和寄存器配置生效行为混在一起。
@@ -242,7 +242,9 @@ CTRL.mode 覆盖 0:normal、1:debug、2:perf、3:reserved。
 
 动态输入参数 TP 描述软件可提交到模块的动态输入空间，包括 instruction、task、descriptor、command/request 参数。不要默认展开底层接口 transaction 信号；接口信号表主要用于 HDL path、采样条件、输入有效事件和输出观测点映射。
 
-每个适用参数使用两个正交属性：
+动态输入 TP 的粒度是一个**可独立构造、独立观测、独立判定的覆盖目标**。TP 数量由覆盖目标决定，不由输入字段数量决定。同一 instruction/task 可以有多个 DYN TP，但不机械地“一字段一个 TP”：仅当参数语义、覆盖空间、预期结果和测试构造方式均一致时允许合并；任一项不同则拆分。
+
+每个动态参数覆盖项使用两个正交属性：
 
 ```text
 parameter_type: reg | imm | mem | mask | enum | index | ...
@@ -251,25 +253,34 @@ coverage_space: range | data | address | format | mode | ...
 
 `parameter_type` 描述参数本身；`coverage_space` 描述扫描空间。不得使用 reference/content、`REF` 或 `VAL`。
 
-示例：
+同语义参数组可以共同表达一个覆盖焦点，例如：
 
 ```text
-ADD.rs1: parameter_type=reg, coverage_space=range
-  -> ADD_DYN_RS1_RANGE_001       # rs1 编码 x0~x31
-ADD.rs1: parameter_type=reg, coverage_space=data
-  -> ADD_DYN_RS1_DATA_001        # rs1 指向寄存器的数据集合
-LOAD.base: parameter_type=reg, coverage_space=data
-LOAD.offset: parameter_type=imm, coverage_space=range
-LOAD.address: parameter_type=mem, coverage_space=address
+参数:
+- rs1
+- rs2
+
+参数类型:
+reg
 ```
 
-`range` 覆盖字段编码或立即数范围；`data` 覆盖参数承载的数据；`address` 覆盖内存地址空间；`format` 和 `mode` 仅在输入明确要求时使用。TP 必须显式列举编码、范围、边界或类别；小规模离散空间全覆盖，大空间仅使用输入明确的集合。当前不默认生成 opcode × parameter、parameter × parameter 或动态参数 × 配置空间组合。
+TP_ID 保留覆盖焦点；同一来源对象下按覆盖目标直接递增：
 
-动态参数 TP 的字段职责为：TP_ID 定位；`verification_goal` 仅描述覆盖对象；`operation` 描述功能关系；`expected_result` 描述检查。示例 goal：`覆盖 ADD.rs1 参数编码范围。`
+```text
+VFMV_S_F_DYN_FS1_RANGE_001  # fs1 定义编码范围
+ADD_DYN_SRC_REG_RANGE_001   # rs1、rs2 的寄存器编号范围
+ADD_DYN_SRC_DATA_002        # rs1、rs2 的寄存器数据集合
+```
+
+`range` 覆盖字段定义的编码或数值范围；`data` 覆盖参数承载的数据；`address` 覆盖内存地址空间；`format` 和 `mode` 仅在输入明确要求时使用。TP 必须显式列举编码、范围、边界或类别；小规模离散空间全覆盖，大空间仅使用输入明确的集合。当前不默认生成 opcode × parameter、parameter × parameter 或动态参数 × 配置空间组合。
+
+若字段的定义 bit range 大于实际生效的 bit range，扫描字段**定义**的完整 bit range；实际有效位、保留位和非法处理方式只能按输入规格写在 `expected_result`，不得默认推导截断、alias 或高位忽略。
+
+除非 TP 明确覆盖多个参数的组合关系，未扫描参数均取输入资料定义的合法基线值。不要在每个场景重复“其余字段合法”；只有该基线值影响预期结果时，才显式列出具体值。
 
 ### TP 描述
 
-动态输入参数 TP 与其他 category 使用一致的生命周期和覆盖策略要求。complete TP 使用：
+动态输入参数 TP 不输出 `category`、`source`、`input_basis` 或 `operation`；它们分别由 TP 所在章节/TP_ID、TP_ID、输入资料清单和参数语义规则承担。`parameter` 可以是单个参数，也可以是同语义参数组。虽然不输出 `source` 字段，`verification_goal`、`verification_scenario` 与 `coverage_target` 必须保留 instruction/task/descriptor 名称、参数名称及被覆盖的硬件对象或编码空间，不得使用无法定位对象的泛化措辞。complete TP 使用：
 
 ```text
 TP ID:
@@ -278,70 +289,67 @@ TP ID:
 生命周期:
 complete
 
-来源对象:
-<instruction / task / descriptor / command>
-
 参数:
-<parameter>
+- <parameter 或同语义参数组成员>
 
 参数类型:
 <reg / imm / mem / ...>
 
-覆盖空间:
-<range / data / address / format / mode>
-
 验证目标:
-覆盖 <source>.<parameter> 的 <coverage_space>。
+覆盖 <instruction/task/descriptor 名称> 的 <parameter> 在 <硬件对象、字段或编码空间> 的 <具体覆盖空间>。
 
-参数扫描:
-显式列举编码、范围、边界或类别。
-
-操作:
-...
+验证场景:
+向 <instruction/task/descriptor 名称> 构造 <parameter> 的 <具体值、范围或类别>；在 <硬件对象或观测点> 采样。未扫描参数取输入资料定义的合法基线值。
 
 预期结果:
-...
+只描述被扫描参数到 DUT 输入语义的映射、合法值处理、输入资料明确的非法/保留处理，或定义 bit range 与实际有效位的关系；不得描述 instruction 完整执行结果、算法计算、destination 数据结果或数据通路功能正确性。
 
 覆盖策略:
-- testcase / covergroup / assertion: ...
+- coverage_space: <range / data / address / format / mode>
+- coverage_target: <参数名或字段 bit range>
+- bins:
+  - <需统计的值/范围/类别>
+- illegal_bins: <仅在规格定义该采样值不应出现时输出>
+- ignore_bins: <仅在值不纳入覆盖统计时输出>
 ```
+
+`illegal_bins` 仅表示覆盖模型中的非法采样值，不代表 DUT 必须报错；`ignore_bins` 仅表示不参与覆盖统计的采样值，不代表 DUT 行为异常。DUT 对这些值的处理方式只能通过 `expected_result` 描述。testcase、covergroup、assertion 可以后续维护为实现映射，但不是动态参数 TP 为 complete 的必要字段。
 
 示例：
 
 ```text
 TP ID:
-ADD_DYN_RS1_RANGE_001
+VFMV_S_F_DYN_FS1_RANGE_001
 
 生命周期:
 complete
 
-来源对象:
-ADD
-
 参数:
-rs1
+- fs1
 
 参数类型:
 reg
 
-覆盖空间:
-range
-
 验证目标:
-覆盖 ADD.rs1 参数编码范围。
+覆盖 VFMV_S_F 的 fs1 在 SRF_RD_P1_IDX 定义编码空间中的寄存器索引范围。
 
-参数扫描:
-rs1 覆盖 x0~x31。
-
-操作:
-提交 rs1=x0~x31 的 ADD 指令。
+验证场景:
+向 VFMV_S_F 提交 fs1 覆盖 SRF_RD_P1_IDX 定义 bit range 的编码；在 SRF_RD_P1_IDX 输入处采样。未扫描字段取输入资料定义的合法基线值。
 
 预期结果:
-全部合法 rs1 编码被接收并按指令规格执行。
+定义 bit range 内的所有编码均参与扫描；实际有效位、保留位和非法处理方式按照输入规格定义。
 
 覆盖策略:
-- covergroup: cg_add_rs1_range
+- coverage_space: range
+- coverage_target: SRF_RD_P1_IDX 的定义 bit range
+- bins:
+ - 定义 bit range 的覆盖集合
 ```
+
+### 反例检查
+
+- `VFMV_S_F_DYN_OPCODE_RANGE_001` 不得生成：`OPCODE=0x21` 是识别 `VFMV_S_F` 的固定编码，不是该 instruction 的动态参数。跨 instruction set 的 opcode decode 扫描属于独立 decode 覆盖目标。
+- `VFMV_S_F_DYN_FS1_RANGE_001` 应生成：`fs1` 是动态参数；定义 bit range 内的所有编码参与扫描，实际有效位、保留位和非法处理方式只按输入规格写在 `expected_result`。
 
 draft TP 使用相同格式，但 `覆盖策略` 可为 `null`；必须追加：
 
@@ -355,7 +363,7 @@ draft TP 使用相同格式，但 `覆盖策略` 可为 `null`；必须追加：
 
 ### 指令输入资料
 
-需要指令编码、功能描述、字段到 HDL signal/path 映射、有效接收/decode/issue 采样事件、clock/reset，以及非法/reserved 编码处理规则。任务/descriptor/command 按相同模型处理：先定义参数类型和覆盖空间，再显式列举值、合法/非法分类和处理规则。
+需要指令编码、功能描述、字段到 HDL signal/path 映射、有效接收/decode/issue 采样事件、clock/reset，以及非法/reserved 编码处理规则。固定 opcode 用于识别 instruction，不视为该 instruction 的动态参数；跨 instruction set 的 opcode decode 覆盖应作为独立 decode 目标处理。任务/descriptor/command 按相同模型处理：先定义参数类型和覆盖空间，再显式列举值、合法/非法分类和处理规则。
 ## 9. Debug 能力 TP
 
 Debug 属于异步输入级别能力。一个 debug 能力一个 TP。初始模板用于生成候选项，实际项目必须根据 debug spec、状态定义、命令接口和 testbench 信号迭代修正。
@@ -606,7 +614,7 @@ Completeness Review **只检查和报告**，不得修改、补充或重新生�
 8. 输出结果覆盖和压力测试均为可选输入件驱动项。
 9. category 独立生成；complete、draft、blocked 的覆盖策略要求不得混用。
 10. 动态参数使用 parameter type + coverage space，不得回退到 reference/content 模型。
-11. verification_goal 只描述覆盖目标；operation 与 expected result 分离。
+11. verification_goal 描述覆盖目标。动态参数 TP 的 expected_result 只描述参数到 DUT 输入语义的映射、合法/非法处理以及有效位关系，不描述 instruction 算法结果。
 12. Completeness Review 只报告既有 inventory 的缺口，不生成新 TP。
 
 
