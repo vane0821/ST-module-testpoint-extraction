@@ -7,7 +7,7 @@
 1. 是否明确目标模块和 ST/module 验证范围。
 2. 是否存在生成目标 TP 类别所需的逻辑信息块。
 3. 是否存在可观测结果、采样条件或状态映射。
-4. 覆盖策略是否至少包含 testcase、covergroup、assertion 中一项。
+4. 覆盖策略是否已按 category 明确：动态参数使用 coverage space/target/bins，其他适用 category 使用 testcase、covergroup 或 assertion 映射。
 5. 不得用“按输入件定义”“代表值”等空泛描述代替具体内容。
 
 ## 分类别检查
@@ -20,7 +20,7 @@
 - 性能验证 TP：检查原子工作场景、监测方式、测量边界、外部干扰条件、指标公式和阈值。
 - 输出结果覆盖 TP：仅在输入资料明确提供覆盖要求时生成。
 
-缺失必要信息时，不生成受影响 TP，只输出输入资料不足报告；不得猜测缺失信息。
+缺失必要信息时按生命周期生成 draft 或记录 blocked；缺失输入、completion summary 和 Completeness Review 仅作为独立 report 输出，不混入单 TP 或 category TP 文件；不得猜测缺失信息。
 
 ## 生命周期判定
 

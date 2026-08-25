@@ -1,16 +1,19 @@
-﻿type: object
-required: [module_st_testpoint_file]
+type: object
+required: [module_category_tp_file]
 properties:
-  module_st_testpoint_file:
+  module_category_tp_file:
     type: object
-    required: [module, testpoints, blocked_items, missing_input_report, completeness_review]
+    required: [module, scope, category, testpoints]
     properties:
       module: {type: string}
+      scope: {type: string}
+      category: {type: string}
+      metadata: {type: object, description: '仅保存该 category 文件共用的 instruction/task 定位信息；module、scope、category 为文件级固定字段。'}
       testpoints:
         type: array
         items:
           type: object
-          required: [tp_id, lifecycle_status, verification_goal, verification_scenario, expected_result]
+          required: [tp_id, lifecycle_status, verification_goal, verification_scenario, expected_result, coverage_strategy]
           properties:
             tp_id: {type: string}
             lifecycle_status: {type: string, enum: [complete, draft]}
@@ -30,8 +33,3 @@ properties:
                 bins: {type: [array, 'null']}
                 illegal_bins: {type: [array, 'null']}
                 ignore_bins: {type: [array, 'null']}
-            missing_information: {type: array}
-            completion_criteria: {type: array}
-      blocked_items: {type: array}
-      missing_input_report: {type: array}
-      completeness_review: {type: object, description: '只检查 inventory，不触发 TP 生成。'}

@@ -2,12 +2,7 @@
 
 每个非动态的 **complete TP** 至少包含以下条目之一。动态参数 TP 的例外见“动态参数 TP”。draft TP 的例外见“生命周期例外”。
 
-```text
-覆盖策略:
-- testcase: <测试构造方式或 testcase 名称>
-- covergroup: <covergroup / coverpoint 名称>
-- assertion: <assertion 名称或生成规则>
-```
+覆盖策略描述覆盖模型，不以 testcase、covergroup、assertion 为默认模板。动态参数 TP 使用 coverage space、coverage target、bins、illegal_bins、ignore_bins；其他 category 根据验证目标选择 testcase、covergroup 或 assertion 映射。
 
 规则：
 
@@ -16,6 +11,8 @@
 3. assertion 只在输入资料给出明确时序、安全、边界或状态约束时生成。
 4. covergroup 需要明确覆盖对象、采样事件和相关 HDL / monitor 映射。
 5. 性能 TP 的覆盖策略必须和监测方式、测量边界一致。 
+6. `testcase` 只标识测试构造方式或后续实现映射，不展开 driver、handshake、等待、恢复、checker 或循环等 testcase 实现步骤。
+7. coverage_strategy 定义值分类与统计空间；expected_result 定义 DUT 对合法、非法或 reserved 值的可观测行为。不得用 expected_result 重复列举全部合法 bins，也不得以“按规格处理”等泛称代替非法行为。
 
 ## 动态参数 TP
 
