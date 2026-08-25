@@ -15,4 +15,6 @@
 
 寄存器访问属性使用 `<module>_REG_<object>_<index>`；`object` 仅表示字段访问类别（如 `RW`、`RO`、`RESET`、`SIDE_EFFECT`、`FIELD_CONSTRAINT`），不使用寄存器名、字段名或访问 Master。相同模块的 `REG` index 按既有 inventory 连续递增且不复用。
 
+配置空间使用 `<module>_CFG_<config_object>_<index>`；`config_object` 是 register 或 config block，field 只在 TP 描述中标识覆盖焦点。多实例对象必须描述实例范围，并覆盖 `instance × field × value`；实例范围不明时输出缺失输入，不默认取单实例。
+
 complete 至少有一项明确覆盖策略。draft 可以缺策略、HDL path、monitor mapping 或 sample event，但必须具备明确目标、场景、缺失项和完成条件。blocked 不生成 TP，仅记录阻塞原因和所需输入。

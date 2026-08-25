@@ -43,14 +43,14 @@
             values: "定义 bit range 的覆盖集合"
       missing_information: []
       completion_criteria: []
-    - tp_id: "MU_CFG_CTRL_MODE_001"
+    - tp_id: "MU_CFG_CTRL_001"
       lifecycle_status: "draft"
-      verification_goal: "覆盖 CTRL.mode 合法配置空间。"
-      verification_scenario: "对 CTRL.mode 写入 normal、debug、perf。"
-      expected_result: "按输入规格生效。"
+      verification_goal: "覆盖配置对象 CTRL 的 mode 字段有效配置状态空间。"
+      verification_scenario: "对配置对象 CTRL 的 mode 字段构造 normal、debug、perf 有效配置状态；实例范围待确认，尚不选择单个 instance。"
+      expected_result: "缺少 CTRL.mode 的配置状态到 DUT 可观测行为定义，不能生成 complete TP。"
       coverage_strategy: null
-      missing_information: ["CTRL.mode 到 HDL signal 的映射", "有效采样事件"]
-      completion_criteria: ["提供 HDL 映射、采样事件和 covergroup 名称后转为 complete"]
+      missing_information: ["CTRL.mode 的完整实例范围", "CTRL.mode 到 HDL signal 的映射", "有效采样事件", "各配置状态的 DUT 可观测行为"]
+      completion_criteria: ["提供实例范围、HDL 映射、采样事件、各配置状态 DUT 行为和 covergroup 名称后转为 complete"]
   blocked_items:
     - category: "Debug 能力 TP"
       source: "MU"
@@ -60,5 +60,5 @@
   completeness_review:
     note: "只审查既有 TP inventory，不生成新 TP。"
     categories:
-      - {category: "配置空间 TP", status: "draft", existing_tp_ids: ["MU_CFG_CTRL_MODE_001"], finding: "缺 HDL 映射和采样事件。"}
+      - {category: "配置空间 TP", status: "draft", existing_tp_ids: ["MU_CFG_CTRL_001"], finding: "缺实例范围、HDL 映射、采样事件和配置状态 DUT 行为。"}
       - {category: "动态输入参数 TP", status: "covered", existing_tp_ids: ["VFMV_S_F_DYN_FS1_RANGE_001"], finding: "已覆盖 fs1 定义编码范围。"}

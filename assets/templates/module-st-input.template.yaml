@@ -22,7 +22,9 @@
       rules: []
     config_to_hdl_mapping:
       mappings:
-        - field: "CTRL.enable"
+        - config_object: "CTRL"
+          field: "CTRL.enable"
+          instance_scope: "CTRL[0]"
           hdl_path: "dut.mu_ctrl_enable"
           sample_event: "cfg_update_done"
     instruction_or_task_description:

@@ -79,7 +79,7 @@ TP 的覆盖策略使用结构化描述。只输出实际需要的条目：
 统一使用大写、下划线和三位序号。不得保留 `ST`、`REF`、`VAL` 或与本规则并行的旧命名。
 
 - 动态输入参数：`<source>_DYN_<parameter_or_group>_<coverage_space>_<index>`，例如 `VFMV_S_F_DYN_FS1_RANGE_001`、`ADD_DYN_SRC_REG_RANGE_001`、`ADD_DYN_SRC_DATA_002`。
-- 模块能力类：`<module>_<category>_<object>_<index>`，例如 `MU_REG_RW_001`、`MU_CFG_CTRL_MODE_001`、`MU_DBG_STOP_001`、`MU_PERF_ADD_DUT_LAT_001`、`MU_OUT_STATUS_FLAG_001`。
+- 模块能力类：`<module>_<category>_<object>_<index>`，例如 `MU_REG_RW_001`、`MU_CFG_CTRL_001`、`MU_DBG_STOP_001`、`MU_PERF_ADD_DUT_LAT_001`、`MU_OUT_STATUS_FLAG_001`。
 
 `source` 只作为 TP_ID 中 instruction/task/descriptor/command 的来源对象；模块能力类以模块名为来源。动态 TP 不输出独立 `source` 字段。`parameter_or_group` 保留覆盖焦点，但不要求机械地一字段一个 TP。
 ## 6. 寄存器访问属性 TP
@@ -234,6 +234,21 @@ TS_REG_RESET_003
 
 配置空间 TP 描述软件预先设定的配置字段取值及组合约束。不引入请求、指令、任务或激励。
 
+配置空间验证软件配置状态及配置约束，不验证寄存器存储行为。每个 Config Space TP 必须明确三层定位：**配置对象**（register/config block）、**field** 和 **value space**。field 是覆盖焦点，不能作为配置对象的唯一定位。这里的 **value space 是 valid configuration state space**：即软件可选择且由规格定义为有效的配置状态集合，不是字段 bit 的全部 encoding space。
+
+### TP_ID 与对象定位
+
+Config Space TP 使用 `<module>_CFG_<config_object>_<index>`；其中 `config_object` 是 register 或 config block，不是 field 名称。例如 `MU_CFG_CTRL_001` 表示配置对象 `CTRL`，具体 field 和 value space 必须在 TP 描述中写明。
+
+```text
+TP ID: MU_CFG_CTRL_001
+配置对象: CTRL
+字段: mode
+有效配置状态: normal、debug、perf
+```
+
+不得使用仅以 field 定位 object 的 `MU_CFG_MODE_001` 或 `MU_CFG_CTRL_MODE_001`。生成结果必须能够确定被配置的对象、覆盖的字段及字段的 value space。
+
 配置空间包括：
 
 - 合法配置。
@@ -249,13 +264,37 @@ TS_REG_RESET_003
 - 单字段配置覆盖。
 - 多字段组合配置覆盖。
 
-单字段配置覆盖扫描某个配置字段自身取值空间。多字段组合配置覆盖字段之间的依赖、互斥、范围、模式相关约束。
+单字段配置覆盖扫描某个配置字段自身的有效配置状态空间。多字段组合配置覆盖字段之间的依赖、互斥、范围、模式相关约束。
+
+字段描述必须先拆解验证语义，再决定 TP category：
+
+- 访问属性、写入限制、非法写入行为、保持值、side effect 属于 Register Access TP。
+- 软件可配置状态、合法配置值、模式选择、配置组合关系属于 Config Space TP。
+- 字段依赖、互斥关系、合法组合空间属于 Config Space combination TP。
+
+不得把字段中的所有 enum、invalid 或 reserved 描述直接归类为 Config Space；一个字段描述可以拆分为 Register Access TP 与 Config Space TP 的不同验证目标。
+
+### 多实例配置
+
+同类型多实例配置对象不要求每个 instance 单独生成重复 TP，但 TP 必须显式描述 instance 覆盖范围。覆盖策略必须包含 `instance` 维度，并表达 `instance × field × value` 覆盖；不得只覆盖 `field × value`。
+
+```text
+配置对象: QUEUE_CFG
+实例范围: QUEUE_CFG[0..3]
+字段: mode
+覆盖空间: normal、debug、perf
+覆盖交叉: instance × mode × value
+```
+
+无法确认实例范围时，输出缺失输入报告；不得默认选择单个 instance。
 
 ### covergroup 要求
 
-配置空间 TP 默认覆盖策略为 `covergroup`。必须提供配置字段到 HDL signal/path 的映射；缺失时报告输入资料不足，不生成该 TP。
+配置空间 TP 默认覆盖策略为 `covergroup`。complete TP 必须提供配置对象及 field 到 HDL signal/path 的映射和 sample event；对象、field、value space、实例范围或组合约束不明确时按 draft/blocked 生命周期处理，不得推测。仅缺 HDL 映射或 sample event 时，可生成 draft TP 并列出完成条件。
 
 同一寄存器的配置字段尽量合并到同一个 covergroup。TP 中 `覆盖策略` 填 covergroup 名称，covergroup 代码可在后续统一生成。
+
+配置 TP 的覆盖策略至少写明配置对象、field、value space；多实例时还必须写明 instance 范围和 `instance × field × value` 覆盖关系。
 
 默认采样语义：
 
@@ -268,7 +307,24 @@ TS_REG_RESET_003
 - 小规模离散空间可全覆盖。
 - 大范围字段按输入资料指定边界 / 类别 / 代表集合覆盖。
 - 不盲目展开超过 SV 自动建仓限制的大空间。
+- `value space` 的 bins 只覆盖有效配置状态，不以字段 bit 的全部编码自动建 bins。非法、reserved、不支持编码是需要单独定义 DUT 行为的异常输入，不自动并入 valid configuration state space。
 - 非法配置如需主动测试，不默认写成 `illegal_bins`；是否使用普通 bins、illegal_bins 或 ignore_bins 由输入资料定义。
+- 非法、reserved 或不支持编码的 `expected_result` 必须写明具体 DUT 可观测行为，例如保持原值、写入忽略、映射默认值、产生错误状态或其他明确硬件行为；不得写“按规格定义”“按输入资料处理”或“按要求处理”。
+- 若输入资料只标记非法/reserved 而未定义 DUT 行为，不生成该行为对应的 complete TP；输出缺失输入并要求补充非法配置处理规则。
+
+### 生成前检查
+
+生成 Config Space TP 前依次检查：
+
+1. 配置对象是否明确。
+2. field 是否属于该配置对象。
+3. 是否存在多实例覆盖需求，以及实例范围是否明确。
+4. value space 是否明确。
+5. 非法/reserved value 是否定义具体 DUT 行为。
+6. 是否存在字段组合约束。
+7. HDL path、sample event 等 complete 条件是否满足。
+
+检查失败时按 complete、draft、blocked 生命周期处理，不允许推测缺失行为。
 
 ### TP 描述
 
@@ -290,16 +346,26 @@ TP ID:
 
 ```text
 TP ID:
-MU_CFG_CTRL_MODE_001
+MU_CFG_CTRL_001
+
+配置对象:
+CTRL
+
+字段:
+mode
 
 配置覆盖:
-CTRL.mode 覆盖 0:normal、1:debug、2:perf、3:reserved。
+CTRL.mode 的有效配置状态为 normal、debug、perf；字段编码 3 为 reserved 异常输入。
 
 预期结果:
-0/1/2 作为合法配置覆盖；3 作为 reserved 配置覆盖，并按输入资料定义的 reserved 处理规则验证。
+normal/debug/perf 分别映射为对应配置状态；reserved 编码 3 写入被忽略并保持当前 mode 状态。
 
 覆盖策略:
 - covergroup: cg_mu_ctrl_cfg
+- config_object: CTRL
+- field: mode
+- value_space: normal、debug、perf
+- reserved_input: 编码 3，写入忽略并保持当前 mode 状态
 ```
 
 ## 8. 动态输入参数 TP
@@ -680,6 +746,11 @@ Completeness Review **只检查和报告**，不得修改、补充或重新生�
 10. 动态参数使用 parameter type + coverage space，不得回退到 reference/content 模型。
 11. verification_goal 描述覆盖目标。动态参数 TP 的 expected_result 只描述参数到 DUT 输入语义的映射、合法/非法处理以及有效位关系，不描述 instruction 算法结果。
 12. Completeness Review 只报告既有 inventory 的缺口，不生成新 TP。
+13. 配置空间验证软件配置状态及配置约束，不验证寄存器存储行为。
+14. 寄存器访问约束验证字段读写语义，不验证配置状态影响。
+15. 一个字段描述可能同时产生 Register Access TP 和 Config Space TP，必须拆分验证目标。
+16. expected_result 必须描述 DUT 可观测行为，不允许引用未展开的规格描述。
+17. Config Space 的 value space 是有效配置状态集合，不是字段 bit 的全部 encoding space；reserved、非法和不支持编码单独定义处理行为。
 
 
 
