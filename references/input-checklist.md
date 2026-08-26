@@ -7,18 +7,19 @@
 1. 是否明确目标模块和 ST/module 验证范围。
 2. 是否存在生成目标 TP 类别所需的逻辑信息块。
 3. 是否存在可观测结果、采样条件或状态映射。
-4. 覆盖策略是否已按 category 明确：动态参数使用 coverage space/target/bins，其他适用 category 使用 testcase、covergroup 或 assertion 映射。
+4. 覆盖策略是否已按 category 明确：动态参数使用 coverage space/target/bins，其他适用 category 使用 testcase、covergroup 或 assertion；具体实现对象仅在适用的 `coverage_strategy_mapping` 中保存。
 5. 不得用“按输入件定义”“代表值”等空泛描述代替具体内容。
 
 ## 分类别检查
 
-- 寄存器访问属性 TP：检查寄存器名、offset、位宽、字段、bit range、访问 Master、access type、reset/default value；RO 字段还要检查固定可读值或状态条件与可读值集合。
+- 寄存器访问属性 TP：检查寄存器名、字段、bit range、access type、reset/default value、实际寄存器/字段映射，以及 reset、clock 或 spec 定义的有效检查时机。
 - Side Effect：检查触发操作、触发条件、触发效果、可观测结果。
-- 配置空间 TP：检查配置对象（register/config block）、field 与所属关系、有效配置状态 value space、字段 encoding 与有效状态的对应关系、实例范围、字段组合约束、非法/reserved value 的具体 DUT 行为、HDL signal/path 映射和采样事件。value space 不等同于字段的全部 bit encoding；实例范围或非法行为缺失时不得推测。
-- 动态输入参数 TP：检查动态输入对象的真正动态参数、可合并的同语义参数组、参数类型、字段定义 bit range、合法取值、已定义的非法/保留处理、实际生效位和预期参数语义。固定 opcode 或其他静态识别字段只用于识别当前动态输入对象，不纳入动态参数扫描。
+- 配置空间 TP：检查不随请求携带、请求前设置且单个请求期间保持稳定的配置对象；检查 config_object、field、完整有效配置状态 value space、不同值类别的 DUT 行为、HDL signal/path 映射和采样事件。reserved、illegal、unsupported 编码不属于正常 Config Space 遍历；不得因当前功能场景只使用部分值而裁剪完整 Config Space。
+- 动态输入参数 TP：检查随当前请求携带的参数、可合并的同语义参数组、参数类型、字段定义 bit range、实际遍历的 enum/编码/范围/类别/边界、已定义的非法/保留处理、实际生效位和预期参数语义。运行时变化、名称包含 dynamic 或存放在寄存器中不构成分类依据；固定 opcode 或其他静态识别字段只用于识别当前动态输入对象，不纳入动态参数扫描。
+- Cross TP：检查 spec 是否明确 Configuration × Configuration、Dynamic Input × Dynamic Input 或 Configuration × Dynamic Input 的联合约束；必须检查有效组合及其 DUT 行为，仅当 spec 明确定义无效组合时检查无效组合及其 DUT 行为，且只在产生单个 Config/Dynamic TP 无法表达的新约束或新行为时生成。单字段 reserved/illegal encoding 不作为 Cross invalid combination；已知 invalid/unsupported 组合未定义 DUT 行为时生成 draft，不得猜测。
 - Debug 能力 TP：检查 debug 命令、状态、触发时机表达式、enable/disable 条件。
 - 性能验证 TP：检查原子工作场景、监测方式、测量边界、外部干扰条件、指标公式和阈值。
-- 输出结果覆盖 TP：仅在输入资料明确提供覆盖要求时生成。
+- 输出结果覆盖 TP：仅在 DUT 输出对象本身存在独立结果覆盖空间、且输入资料明确提供覆盖要求时生成；当前 Config/Register/Dynamic/Cross TP 的判定输出只写入 `expected_result`。
 
 缺失必要信息时按生命周期生成 draft 或记录 blocked；缺失输入、completion summary 和 Completeness Review 仅作为独立 report 输出，不混入单 TP 或 category TP 文件；不得猜测缺失信息。
 

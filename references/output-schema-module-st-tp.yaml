@@ -28,3 +28,4 @@ properties:
             bins: {type: [array, 'null']}
             illegal_bins: {type: [array, 'null']}
             ignore_bins: {type: [array, 'null']}
+        coverage_strategy_mapping: {type: [string, 'null']}
