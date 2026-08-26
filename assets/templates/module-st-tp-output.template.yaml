@@ -1,6 +1,1 @@
-module_category_tp_file:
-  module: "<module>"
-  scope: "ST/module verification"
-  category: "<Register Access TP / Config Space TP / Dynamic Input TP / Debug TP / Performance TP / Output Result TP>"
-  metadata: {}
-  testpoints: []
+testpoints: []

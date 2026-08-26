@@ -1,35 +1,30 @@
 type: object
-required: [module_category_tp_file]
+required: [testpoints]
 properties:
-  module_category_tp_file:
-    type: object
-    required: [module, scope, category, testpoints]
-    properties:
-      module: {type: string}
-      scope: {type: string}
-      category: {type: string}
-      metadata: {type: object, description: '仅保存该 category 文件共用的 instruction/task 定位信息；module、scope、category 为文件级固定字段。'}
-      testpoints:
-        type: array
-        items:
-          type: object
-          required: [tp_id, lifecycle_status, verification_goal, verification_scenario, expected_result, coverage_strategy]
+  testpoints:
+    type: array
+    items:
+      type: object
+      required: [tp_id, lifecycle_status, verification_goal, verification_scenario, expected_result, coverage_strategy]
+      properties:
+        tp_id: {type: string}
+        lifecycle_status: {type: string, enum: [complete, draft, blocked]}
+        verification_goal: {type: [string, 'null']}
+        parameter: {type: [array, 'null']}
+        parameter_type: {type: [string, 'null']}
+        config_object: {type: [string, 'null']}
+        field: {type: [string, 'null']}
+        debug_capability: {type: [string, 'null']}
+        verification_scenario: {type: [string, 'null']}
+        expected_result: {type: [string, 'null']}
+        coverage_strategy:
+          type: [object, 'null']
           properties:
-            tp_id: {type: string}
-            lifecycle_status: {type: string, enum: [complete, draft]}
-            verification_goal: {type: string}
-            parameter: {type: [array, 'null']}
-            parameter_type: {type: [string, 'null']}
-            verification_scenario: {type: string}
-            expected_result: {type: string}
-            coverage_strategy:
-              type: [object, 'null']
-              properties:
-                testcase: {type: [string, 'null']}
-                covergroup: {type: [string, 'null']}
-                assertion: {type: [string, 'null']}
-                coverage_space: {type: [string, 'null']}
-                coverage_target: {type: [string, 'null']}
-                bins: {type: [array, 'null']}
-                illegal_bins: {type: [array, 'null']}
-                ignore_bins: {type: [array, 'null']}
+            testcase: {type: [string, 'null']}
+            covergroup: {type: [string, 'null']}
+            assertion: {type: [string, 'null']}
+            coverage_space: {type: [string, 'null']}
+            coverage_target: {type: [string, 'null']}
+            bins: {type: [array, 'null']}
+            illegal_bins: {type: [array, 'null']}
+            ignore_bins: {type: [array, 'null']}

@@ -31,7 +31,7 @@ properties:
             type: object
           config_to_hdl_mapping:
             type: object
-          instruction_or_task_description:
+          dynamic_input_description:
             type: object
           debug_description:
             type: object
