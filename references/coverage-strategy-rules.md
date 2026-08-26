@@ -2,7 +2,7 @@
 
 每个非动态的 **complete TP** 至少包含以下条目之一。动态参数 TP 的例外见“动态参数 TP”。draft TP 的例外见“生命周期例外”。
 
-coverage_strategy 描述验证方式或覆盖模型，不以 testcase、covergroup、assertion 为默认模板。动态参数 TP 使用 coverage space、coverage target、bins、illegal_bins、ignore_bins；其他 category 根据验证目标选择 testcase、covergroup 或 assertion。coverage_strategy_mapping 仅在 category 已定义需要实际实现映射时保存 testcase name、assertion code 或 coverage code。
+coverage_strategy 描述验证方式或覆盖模型，不以 testcase、covergroup、assertion 为默认模板。动态参数 TP 使用 coverage space、coverage target、bins、illegal_bins、ignore_bins；其他 category 根据验证目标选择 testcase、covergroup 或 assertion。coverage_strategy_mapping 在实际实现对象已知时保存 testcase name、assertion code 或 coverage code；不得将实现映射写入 coverage_strategy。
 
 规则：
 
