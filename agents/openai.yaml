@@ -1,3 +1,2 @@
 ﻿display_name: ST 模块 Testpoint 提取 v2
 short_description: 从模块资料提取、整理和审查 ST 模块验证 TP。
-default_prompt: 使用 ST 模块 Testpoint 提取 v2，根据模块资料生成模块验证 TP，并标注 draft、complete 或 blocked 生命周期。

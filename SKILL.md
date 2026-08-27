@@ -27,7 +27,7 @@ category-specific 字段只能用于定位覆盖对象，不承载验证语义�
 
 TP 不展开 testcase 实现细节：不得写 driver sequence、stimulus 调度或具体构造细节、iteration 内部步骤、handshake 顺序、wait/drain/recovery、寄存器写入时序、scoreboard/checker 实现或 testcase 内部循环。
 
-TP 数量由独立验证目标决定，不由输入字段数量决定。仅当参数或功能语义、coverage space、`expected_result` 和验证构造方式均一致时可合并；覆盖空间、DUT 行为或预期结果任一不同则必须拆分。
+TP 数量由独立验证目标决定，不由输入字段数量决定。仅当对象或功能语义、coverage space、适用的预期语义或 DUT 行为和验证构造方式均一致时可合并；任一不同则必须拆分。不得为不存在 `expected_result` 字段的 category 额外生成该字段。
 
 本 Skill 不负责：
 
@@ -39,14 +39,7 @@ TP 数量由独立验证目标决定，不由输入字段数量决定。仅当�
 
 ## 2. TP 生成模式与生命周期
 
-各 TP category 独立判断和生成；一个 category 缺资料不得阻断其他 category。输出时按 category 聚合为结构化 TP 数据；默认交付为 Excel workbook 的对应 sheet。category 独立只表示生成逻辑互不阻塞，不表示一个 TP 一个文件或多个同类 TP 数据文件。Cross 与 Register Access、Config Space、Dynamic Input 一样属于基础 TP inventory，必须仅按输入资料中明确存在的多对象关系独立生成，其完整性不依赖当前用户场景。Scenario 不是新的 TP category：用户通过 prompt 指定并命名功能、指令或场景后，每个 Scenario 使用独立 `Scenario - <scenario_name>` sheet；该 sheet 只从已有基础 TP inventory 中提取相关 Register Access、Config Space、Dynamic Input、Cross 及其他适用基础 TP，进行场景化组织和解释，不新增 `scenario_name` 行字段。功能场景不得反向生成、修改、裁剪或重排任何基础 TP；当前功能名或指令名不得写入基础 TP 的 TP_ID、`verification_goal` 或其他字段。Scenario sheet 不重新定义基础覆盖空间，不复制完整 TP。用户请求“生成某功能/指令的所有 TP”时，固定依次完整生成 Register Access、Config Space、Dynamic Input、Cross 等基础 inventory，再提取该场景关联的 Scenario 内容。根据请求选择完整生成、指定 category 生成、生命周期整理、覆盖策略映射、缺失输入报告或只读完备性审查；未指定时默认完整生成。
-
-提示词示例：
-
-- `根据这些模块资料生成完整的模块 ST TP，并标注生命周期。`
-- `仅生成 LOAD 指令的动态输入参数 TP。`
-- `将这份 TP 清单按 draft/complete/blocked 整理，并列出缺失输入。`
-- `审查 MU 的 TP inventory 是否覆盖全部适用 category；只报告缺口，不要生成新 TP。`
+各 TP category 独立判断和生成；一个 category 缺资料不得阻断其他 category。输出时按 category 聚合为结构化 TP 数据；默认交付为 Excel workbook 的对应 sheet。category 独立只表示生成逻辑互不阻塞，不表示一个 TP 一个文件或多个同类 TP 数据文件。用户以功能或指令作为入口时，必须严格分为两个阶段。**Phase 1 — Base Inventory**：完全忽略当前 Scenario 名称和内容，从全部输入资料独立生成完整 Register Access、Config Space、Dynamic Input、Cross inventory；Config 覆盖全部识别出的 `config_object.field`，Dynamic 覆盖全部识别出的动态参数空间，Cross 覆盖输入资料全部明确给出的多对象关系。不得因当前 Scenario 未引用对象而跳过；若只生成当前功能/指令相关的基础 TP，则 Base Inventory 不完整。**Phase 2 — Scenario Extraction**：用户指定并命名功能、指令或场景后，每个 Scenario 使用独立 `Scenario - <scenario_name>` sheet；该 sheet 只从完整 Base Inventory 中提取相关 Register Access、Config Space、Dynamic Input、Cross 及其他适用基础 TP，进行场景化组织和解释，不新增 `scenario_name` 行字段。Scenario 不是新的 TP category，且不得生成、修改、裁剪、补充或重排任何基础 TP；当前功能名或指令名不得作为额外身份信息写入基础 TP_ID。输入资料本身明确包含的功能名、指令名或编码语义可自然保留在 `verification_goal` 等描述字段中，但不得仅因当前 Scenario 向基础 TP 注入额外场景条件。Scenario sheet 不重新定义基础覆盖空间，不复制完整 TP。根据请求选择完整生成、指定 category 生成、生命周期整理、覆盖策略映射、缺失输入报告或只读完备性审查；未指定时默认完整生成。
 
 每个候选项只有一种状态：
 
@@ -94,7 +87,7 @@ TP 的覆盖策略使用结构化描述，只输出实际需要的条目。`cove
 动态 TP 以 `<module>` 标识归属模块，不使用 `source` 作为 TP_ID 身份或来源追溯。TP_ID 的职责是保证唯一性、表达 category 和快速表达验证焦点；`index` 保证唯一性，ID 不绑定当前输入资料的组织层次。`parameter_or_group` 保留覆盖焦点，但不要求机械地一字段一个 TP。
 ## 6. 寄存器访问属性 TP
 
-Register Access TP 按寄存器组织，用于验证寄存器 reset 与已定义访问属性。不要把寄存器访问验证与配置生效、功能状态变化或未确认的特殊访问语义混在一起。
+Register Access TP 按寄存器组织，验证寄存器读写动作及其输入资料明确规定的直接 side effect。command、trigger、start、kick 等由寄存器访问直接触发的明确行为属于 Register Access 语义；与寄存器读写动作无直接关系的独立功能效果不进入 Register Access。不得根据字段名称推断 side effect。
 
 解析寄存器表后，每个适用的 Register Access 对象都必须生成 TP，或按已知信息标记为 draft / blocked，并在缺失输入报告中标记 missing；不得因为当前功能场景未引用该寄存器或字段而跳过。存在寄存器表但未生成 Register Access sheet，视为生成不完整。
 
@@ -150,7 +143,7 @@ RW 属性的验证意图是字段能够正确写入并读回。
 
 当前已确认的标准属性模板仅为 RESET、R、RW。只有字段语义与对应模板完全一致时才可使用；不得因字段名称或 access type 相近而自动套用。
 
-遇到 side effect、W1C、W1S、RC、特殊写行为、状态依赖、合法值限制或其他 RESET/R/RW 无法覆盖的语义时，不得强行套用、根据属性名称推导行为，或为当前寄存器临时创建一次性规则。标记该属性或语义为待确认，并要求验证人员补充可泛化的属性模板；该模板至少定义 `verification_goal`、`verification_scenario`、`expected_result`、`coverage_strategy`、`coverage_strategy_mapping`。模板确认后，才作为该类属性的统一生成规则，且不得绑定某个寄存器实例。
+遇到 side effect、W1C、W1S、RC、command、trigger、start、kick 或其他特殊读写语义时，不得根据字段名称推导行为。若输入资料已明确给出完整读写语义及写操作产生的 side effect，可直接生成 Register Access TP，不要求预先存在通用属性模板；`verification_goal`、`verification_scenario`、`expected_result` 直接依据已明确语义生成。只有实际读写语义或 side effect 无法确定时，才标记待确认并要求补充信息；无需为当前寄存器临时创建一次性规则。
 
 ## 7. 配置空间 TP
 
@@ -162,11 +155,11 @@ RW 属性的验证意图是字段能够正确写入并读回。
 
 ### Config Space 生成
 
-Config Space 必须先独立生成完整配置空间，不受当前功能场景裁剪。每个 Config TP 只对应一个 `config_object`、一个 `field` 和一个独立 value-space verification goal；TP_ID 使用 `<module>_CFG_<config_object>_<index>`，`index` 按 Config Space sheet 的最终行顺序连续递增，不按对象或类型分别编号。输入资料识别出的每个 `config_object.field` 都必须生成 Config TP，或按已知信息标记为 draft / blocked，并在缺失输入报告中标记 missing；不得因为当前功能场景未引用该 field 而跳过。基础 Config Space TP 固定只包含 `TP_ID`、`lifecycle_status`、`config_object`、`field`、`verification_goal`、`coverage_strategy`、`coverage_strategy_mapping`；不输出 `verification_scenario`、`expected_result`。需要多对象关系或 DUT 行为判定时，进入 Cross、Output Result、Register Access 等对应 category。
+Config Space 必须先独立生成完整配置空间，不受当前功能场景裁剪。每个 Config TP 只对应一个 `config_object`、一个 `field` 和一个独立 value-space verification goal；TP_ID 使用 `<module>_CFG_<config_object>_<index>`，`index` 按 Config Space sheet 的最终行顺序连续递增，不按对象或类型分别编号。输入资料识别出的每个 `config_object.field` 都必须生成 Config TP，或按已知信息标记为 draft / blocked，并在缺失输入报告中标记 missing；不得因为当前功能场景未引用该 field 而跳过。基础 Config Space TP 固定只包含 `TP_ID`、`lifecycle_status`、`config_object`、`field`、`verification_goal`、`coverage_strategy`、`coverage_strategy_mapping`；不输出 `verification_scenario`、`expected_result`。单对象自身取值对应的输入资料明确语义保留在当前 Config TP；仅多对象关系进入 Cross，输出对象自身的独立覆盖空间进入 Output Result，寄存器读写动作及 side effect 进入 Register Access。
 
 `verification_goal` 必须直接展开该 field 的完整定义空间，写出具体 enum、编码、范围或分类，以及输入资料明确定义的 valid / invalid / reserved / unsupported 分类和对应预期语义。不得用“覆盖有效配置状态”“覆盖选择空间”“覆盖所有合法值”或其他无法直接看出待覆盖值的泛化描述。只阅读 `verification_goal` 而不查询原 spec 时，reviewer 必须能知道该 TP 要遍历哪些 field value 与其已定义语义。输入资料明确给出的 valid、invalid、reserved、unsupported 值均属于 Config Space；未定义的 DUT 行为不得自行推断。
 
-基础 Config TP 只覆盖 field 的单对象完整定义空间，以及输入资料明确的分类和对应预期语义；不自行推断未定义 DUT 行为。需要独立多对象关系或行为覆盖时，仅在输入资料或用户明确提出独立目标后进入对应 category。缺少完整 value space 或覆盖策略所需信息时，按 lifecycle 生成 draft/blocked，且不得推测。
+基础 Config TP 覆盖 field 的单对象完整定义空间，以及输入资料明确的分类和对应预期语义；不自行推断未定义 DUT 行为。仅多对象关系进入 Cross，输出对象自身的独立覆盖空间进入 Output Result，寄存器读写动作及 side effect 进入 Register Access。缺少完整 value space 或覆盖策略所需信息时，按 lifecycle 生成 draft/blocked，且不得推测。
 
 ## 8. 动态输入参数 TP
 
@@ -202,15 +195,15 @@ VU_DYN_SRC_REG_RANGE_001  # rs1、rs2 的寄存器编号范围
 VU_DYN_SRC_DATA_002       # rs1、rs2 的寄存器数据集合
 ```
 
-`range` 覆盖字段定义的编码或数值范围；`data` 覆盖参数承载的数据；`address` 覆盖内存地址空间；`format` 和 `mode` 仅在输入明确要求时使用。基础 Dynamic TP 与 Config TP 一样，只描述单对象完整定义空间：`verification_goal` 必须显式列举输入资料明确定义的具体值、编码、范围、边界或类别，以及 valid、invalid、reserved、unsupported 分类和对应预期语义；`coverage_strategy` 负责表达这些空间与对应 bins。不得用“覆盖完整空间”“覆盖所有合法值”等泛化描述。小规模离散空间全覆盖，大空间仅使用输入明确的集合；未定义的 DUT 行为不得自行推断。Dynamic Input TP 不因当前功能场景中的 Configuration 而裁剪；功能名或指令名不得写入基础 Dynamic TP 的 TP_ID、`verification_goal` 或其他字段。
+`range` 覆盖字段定义的编码或数值范围；`data` 覆盖参数承载的数据；`address` 覆盖内存地址空间；`format` 和 `mode` 仅在输入明确要求时使用。基础 Dynamic TP 与 Config TP 一样，描述单对象完整定义空间及输入资料明确的自身取值语义：`verification_goal` 必须显式列举具体值、编码、范围、边界或类别，以及 valid、invalid、reserved、unsupported 分类和对应预期语义；`coverage_strategy` 负责表达这些空间与对应 bins。不得用“覆盖完整空间”“覆盖所有合法值”等泛化描述。小规模离散空间全覆盖，大空间仅使用输入明确的集合；未定义的 DUT 行为不得自行推断。Dynamic Input TP 不因当前功能场景中的 Configuration 而裁剪；功能名或指令名不得作为额外身份信息写入基础 TP_ID。输入资料本身明确包含的功能名、指令名或编码语义可自然保留在描述字段中，但不得仅因当前 Scenario 注入额外场景条件。
 
-若字段的定义 bit range 大于实际生效的 bit range，扫描字段**定义**的完整 bit range；实际有效位、保留位和非法处理方式不得默认推导截断、alias 或高位忽略。只有输入资料或用户明确提出独立 Cross、Output Result 或 Register Access 覆盖目标时，才生成对应 TP。
+若字段的定义 bit range 大于实际生效的 bit range，扫描字段**定义**的完整 bit range；实际有效位、保留位和非法处理方式仅在输入资料明确时写入当前 Dynamic TP 的 `verification_goal`，不得默认推导截断、alias 或高位忽略。多对象关系、输出对象自身独立覆盖空间、寄存器读写动作及 side effect 分别进入 Cross、Output Result、Register Access。
 
-除非 TP 明确覆盖多个参数的组合关系，未扫描参数均取输入资料定义的合法 baseline。这是基础 Dynamic TP 的生成约束，不是输出字段；只有输入资料或用户明确要求基于该 baseline 验证多对象关系或独立 DUT 行为时，才在对应 category 表达具体约束。
+基础 Dynamic TP 只覆盖单对象输入空间；未扫描参数均取输入资料定义的合法 baseline。这是基础 Dynamic TP 的生成约束，不是输出字段。多个 Dynamic 参数之间存在输入资料明确的联合关系时，该关系必须独立生成 Cross TP。
 
 ### TP 描述
 
-动态输入参数 TP 遵循统一 TP schema：`tp_id`、`lifecycle_status`、`parameter`、`parameter_type`、`verification_goal`、`coverage_strategy`、`coverage_strategy_mapping`。其中 category-specific identifier fields 仅为 `parameter`、`parameter_type`；不输出 `category`、`source`、`input_basis`、`operation`、`verification_scenario`、`expected_result`、testcase implementation 字段或输入资料 traceability 字段。`parameter` 可以是单个参数，也可以是同语义参数组。`verification_goal` 与 `coverage_target` 必须保留当前动态输入对象、参数名称及被覆盖的硬件对象或编码空间，不得使用无法定位对象的泛化措辞。invalid、reserved、unsupported 值分类不自动生成行为型 TP，也不得推断 DUT 对这些值的处理；只有输入资料或用户明确提出独立覆盖目标时，才生成对应 category 的 TP。complete TP 不以 testcase name 为必要条件。
+动态输入参数 TP 遵循统一 TP schema：`tp_id`、`lifecycle_status`、`parameter`、`parameter_type`、`verification_goal`、`coverage_strategy`、`coverage_strategy_mapping`。其中 category-specific identifier fields 仅为 `parameter`、`parameter_type`；不输出 `category`、`source`、`input_basis`、`operation`、`verification_scenario`、`expected_result`、testcase implementation 字段或输入资料 traceability 字段。`parameter` 可以是单个参数，也可以是同语义参数组。`verification_goal` 与 `coverage_target` 必须保留当前动态输入对象、参数名称及被覆盖的硬件对象或编码空间，不得使用无法定位对象的泛化措辞。invalid、reserved、unsupported 值分类及输入资料明确的对应预期语义保留在当前 Dynamic TP；不得推断未定义 DUT 行为。仅多对象关系进入 Cross，输出对象自身的独立覆盖空间进入 Output Result，寄存器读写动作及 side effect 进入 Register Access。complete TP 不以 testcase name 为必要条件。
 
 ```text
 tp_id:
@@ -256,13 +249,13 @@ draft TP 使用相同的 TP 字段，`coverage_strategy` 可为 `null`；缺失�
 
 Cross 用于验证两个或多个 Configuration / Dynamic Input 对象的联合取值约束，以及这些组合对应的 DUT 行为。生成 Cross 时固定检查 Configuration × Configuration、Dynamic Input × Dynamic Input、Configuration × Dynamic Input 三类联合空间；每类必须确定输入资料明确给出的有效组合及其 DUT 行为/结果。只有输入资料明确定义存在无效组合时，才同时覆盖无效组合及其 DUT 行为/结果；不得为了补齐 Cross TP 主动推导或制造无效组合。只有联合取值产生单个 Config TP 或 Dynamic TP 无法表达的新约束或新行为时才生成 Cross；不得仅因多个对象同时存在而生成，也不得默认展开全量 Cartesian cross。
 
-Cross 中的无效组合是指各对象单独取值可能合法，但组合后违反输入资料明确给出的联合约束；不得将单个 Config field 自身的 reserved/illegal encoding 重新作为 Cross invalid combination。输入资料已明确某组合 invalid/unsupported 而未定义 DUT 可观测行为时，不得猜测 `expected_result`；生成 `draft` TP，并在 missing-input/todo report 要求补充该组合的异常处理行为。只有组合约束本身无法确定，导致 `verification_goal` 无法形成时，才标记为 `blocked`。
+Cross 中的无效组合是指各对象单独取值可能合法，但组合后违反输入资料明确给出的联合约束；不得将单个 Config field 自身的 reserved/illegal encoding 重新作为 Cross invalid combination。输入资料已明确某组合 invalid/unsupported 而未定义该组合对应的关系或 DUT 行为时，生成 `draft` TP，并在 missing-input/todo report 要求补充对应行为/结果，以完成 `verification_goal`；不得将缺失 `expected_result` 作为 draft 判据。只有组合约束本身无法确定，导致 `verification_goal` 无法形成时，才标记为 `blocked`。
 
 Cross TP 默认使用 `TP_ID`、`lifecycle_status`、`verification_goal`、`coverage_strategy`、`coverage_strategy_mapping`，不增加 category-specific identifier fields，也不输出 `verification_scenario`。`verification_goal` 必须以输入资料中的对象、字段和值直接表达完整联合条件及对应关系或结果，优先使用 `<joint_condition> -> <relation_or_result>` 形式；能由该逻辑表达式完整表达时，不得再重复等价的长自然语言，必要时仅补充最小说明。输入资料明确定义无效组合时，同样表达无效联合条件及其对应关系或结果。不得只写“覆盖相关配置组合”“覆盖 selection/override 关系”“覆盖有效 cross space”或其他无法看出实际组合约束的泛化描述。表达式不得自行创造新的中间对象或语义。`expected_result` 默认不输出；仅在结果无法自然并入 `verification_goal` 的逻辑关系表达式时才允许额外输出。
 
 Cross 的 `coverage_strategy` 不设固定默认值；按已明确的关系选择 testcase、covergroup 或 assertion 等验证方式。实际 testcase name、assertion code 或 coverage code 仅写入 `coverage_strategy_mapping`。
 
-Cross 基于输入资料中明确存在的多对象关系独立生成，不根据用户指定 Scenario 临时生成、裁剪或修改。基础 inventory 的生成顺序为：先建立完整 Config Space，再建立完整 Dynamic Input，随后对输入资料明确给出的关系生成完整 Cross inventory。用户以功能场景或指令作为生成入口时，每个命名 Scenario 使用独立 `Scenario - <scenario_name>` sheet，从既有基础 TP 中提取相关项；每条场景关联至少包含 `related_tp_id`、当前场景中的对象角色、该场景下的取值含义或约束关系、以及当前场景需要覆盖的具体语义。Scenario sheet 必须使 reviewer 无需跳转基础 sheet 也能理解该 TP 在当前场景中的作用，但不重新定义基础覆盖空间，也不复制完整 TP；不得新增 `scenario_name` 行字段，多个 Scenario 不得混合在同一 sheet。功能场景名称不写入任何基础 TP 的 TP_ID、`verification_goal` 或其他字段，也不改写、裁剪或重排基础 inventory。
+Cross 基于输入资料中明确存在的多对象关系独立生成，不根据用户指定 Scenario 临时生成、裁剪或修改。基础 inventory 的生成顺序为：先建立完整 Config Space，再建立完整 Dynamic Input，随后对输入资料明确给出的关系生成完整 Cross inventory。用户以功能场景或指令作为生成入口时，每个命名 Scenario 使用独立 `Scenario - <scenario_name>` sheet，从既有基础 TP 中提取相关项；每条场景关联至少包含 `related_tp_id`、当前场景中的对象角色、该场景下的取值含义或约束关系、`why_relevant_to_scenario` 和 `scenario_application`。`scenario_application` 必须说明该基础 TP 对象在当前 Scenario 中实际决定、影响或约束什么，不得只写沿用基础覆盖空间、bins 或 coverage。Scenario sheet 必须使 reviewer 无需跳转基础 sheet 也能理解该 TP 在当前场景中的作用，但不重新定义基础覆盖空间，也不复制 `verification_goal` 或 `coverage_strategy`；不得新增 `scenario_name` 行字段，多个 Scenario 不得混合在同一 sheet。功能场景名称不得作为额外身份信息写入基础 TP_ID；输入资料本身明确包含的功能名、指令名或编码语义可自然保留在基础 TP 描述字段中，但不得仅因当前 Scenario 注入额外场景条件，也不改写、裁剪或重排基础 inventory。
 ## 10. Debug 能力 TP
 
 Debug 属于异步输入级别能力。一个 debug 能力一个 TP。初始模板用于生成候选项，实际项目必须根据 debug spec、状态定义、命令接口和 testbench 信号迭代修正。
@@ -439,7 +432,7 @@ Skill 的核心输出是按统一 TP schema 生成、按 category 分组的结�
 
 默认 workbook 使用 `Register Access`、`Config Space`、`Dynamic Input`、`Cross`、`Debug`、`Performance`、`Output Result` sheet；仅生成实际适用且有 TP 的 sheet。category 由 sheet 表达，不在每行重复输出。每个 TP（包括 blocked TP）在对应 sheet 占一行：`Register Access` 至少包含 `TP_ID`、`lifecycle_status`、`verification_goal`、`verification_scenario`、`expected_result`、`coverage_strategy`、`coverage_strategy_mapping`，且同一寄存器连续排列、RESET 优先、TP_ID index 与行顺序一致；基础 `Dynamic Input` 固定包含 `TP_ID`、`lifecycle_status`、`parameter`、`parameter_type`、`verification_goal`、`coverage_strategy`、`coverage_strategy_mapping`，不输出 `verification_scenario`、`expected_result`；基础 `Config Space` 固定包含 `TP_ID`、`lifecycle_status`、`config_object`、`field`、`verification_goal`、`coverage_strategy`、`coverage_strategy_mapping`，不输出 `verification_scenario`、`expected_result`；`Cross` 固定包含 `TP_ID`、`lifecycle_status`、`verification_goal`、`coverage_strategy`、`coverage_strategy_mapping`，不输出 `verification_scenario`，仅在必要时输出 `expected_result`；其他 sheet 按统一 TP 模型和必要 identifier fields 输出。`coverage_strategy` 可在单元格中使用简洁、可读的结构化表达，不得为 Excel 新增大量扁平字段。
 
-当用户以功能场景或指令作为生成入口时，每个命名 Scenario 使用独立 `Scenario - <scenario_name>` sheet，从已有基础 TP inventory 中提取相关 Register Access、Config Space、Dynamic Input、Cross 及其他适用基础 TP，做场景化组织和解释；不新增 `scenario_name` 行字段，多个 Scenario 不得混合。每条场景关联至少输出 `related_tp_id`、对象角色、场景取值含义或约束关系、场景覆盖语义；基础 sheet 保持模块 inventory 的完整内容和原有 TP_ID。Scenario sheet 不重新定义基础覆盖空间，不得复制、改写、裁剪或重排基础 sheet 内容；功能名称不得写入基础 TP_ID、`verification_goal` 或其他基础字段。
+当用户以功能场景或指令作为生成入口时，每个命名 Scenario 使用独立 `Scenario - <scenario_name>` sheet，从完整 Base Inventory 中提取相关 Register Access、Config Space、Dynamic Input、Cross 及其他适用基础 TP，做场景化组织和解释；不新增 `scenario_name` 行字段，多个 Scenario 不得混合。每条场景关联至少输出 `related_tp_id`、对象角色、场景取值含义或约束关系、`why_relevant_to_scenario`、`scenario_application`；`scenario_application` 必须说明该基础 TP 对象在当前 Scenario 中实际决定、影响或约束什么，不得只写“沿用基础 TP 定义的覆盖空间”“不重新定义 bins”或同类无场景语义信息，也不得复制基础 TP 的 `verification_goal` 或 `coverage_strategy`。连续多行中 `why_relevant_to_scenario` 或 `scenario_application` 内容完全一致时，允许纵向合并对应 Excel 单元格；该合并仅用于展示，不改变每行与 `related_tp_id` 的逻辑对应关系。内容仅语义相近时不得合并。基础 sheet 保持模块 inventory 的完整内容和原有 TP_ID。Scenario sheet 不重新定义基础覆盖空间，不得复制、改写、裁剪或重排基础 sheet 内容；功能名称不得作为额外身份信息写入基础 TP_ID。输入资料本身明确包含的功能名、指令名或编码语义可自然保留在基础 TP 描述字段中，但不得仅因当前 Scenario 注入额外场景条件。
 
 凡是能由上层分组、Excel sheet、TP_ID 或 Skill 固定规则唯一确定，且删除后不影响 TP 的理解、实现或评审的信息，不在更低层重复输出。不得机械输出 scope、输入对象 metadata、assembly、fixed opcode、execution unit list 或规则解释；只有信息本身确实对 TP 评审或实现必要时才保留。来源依据、Completeness Review、missing input report、generation summary 和 completion summary 属于 inventory/report 层，仅在用户明确要求 review/report 时独立输出，且 report 不得复制完整 TP inventory。
 
@@ -460,11 +453,14 @@ Skill 的核心输出是按统一 TP schema 生成、按 category 分组的结�
 11. 是否新增未经定义的 TP 字段体系。
 12. 每个 TP 是否被放入正确 category sheet。
 13. category 是否被不必要地重复成每行字段。
-14. 用户指定功能或指令时，基础 Register Access / Config Space sheet 是否仍保持完整 inventory，且功能名称未写入基础 TP_ID、`verification_goal` 或其他基础字段。
+14. 用户指定 Scenario 时，基础 inventory 是否保持完整，且 Scenario 名称未作为额外身份信息写入基础 TP_ID；输入资料本身明确存在的功能名、指令名或编码语义可保留在基础 TP 描述字段中，且未仅因当前 Scenario 注入额外场景条件。
 15. 存在寄存器表时是否已生成 Register Access sheet，且每个识别出的适用 Register Access 对象均已有 TP、draft / blocked 状态或 missing 记录。
 16. 每个识别出的 `config_object.field` 是否均已有 Config TP、draft / blocked 状态或 missing 记录。
-17. 每个命名 Scenario 是否使用独立 `Scenario - <scenario_name>` sheet，包含 `related_tp_id`、对象角色、场景取值含义或约束关系、场景覆盖语义，且未复制完整基础 TP。
+17. 每个命名 Scenario 是否使用独立 `Scenario - <scenario_name>` sheet，包含 `related_tp_id`、对象角色、场景取值含义或约束关系、`why_relevant_to_scenario`、`scenario_application`，且未复制完整基础 TP。
 18. Cross 是否仅按输入资料中明确存在的多对象关系生成，并作为独立基础 inventory 完整保留，不受当前 Scenario 影响。
+19. 每个识别出的 Dynamic Input 参数空间是否均已有基础 TP、draft / blocked 状态或 missing 记录。
+20. 输入资料中每个明确的多对象关系是否均已有 Cross TP、draft / blocked 状态或 missing 记录。
+21. Register Access、Config Space、Dynamic Input、Cross 是否均已按输入资料完整处理；否则 Base Inventory 不得标记为完整。
 
 ### 输出顺序
 
