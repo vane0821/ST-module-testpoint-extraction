@@ -39,7 +39,19 @@ TP 数量由独立验证目标决定，不由输入字段数量决定。仅当�
 
 ## 2. TP 生成模式与生命周期
 
-各 TP category 独立判断和生成；一个 category 缺资料不得阻断其他 category。输出时按 category 聚合为结构化 TP 数据；默认交付为 Excel workbook 的对应 sheet。category 独立只表示生成逻辑互不阻塞，不表示一个 TP 一个文件或多个同类 TP 数据文件。用户以功能或指令作为入口时，必须严格分为两个阶段。**Phase 1 — Base Inventory**：完全忽略当前 Scenario 名称和内容，从全部输入资料独立生成完整 Register Access、Config Space、Dynamic Input、Cross inventory；Config 覆盖全部识别出的 `config_object.field`，Dynamic 覆盖全部识别出的动态参数空间，Cross 覆盖输入资料全部明确给出的多对象关系。不得因当前 Scenario 未引用对象而跳过；若只生成当前功能/指令相关的基础 TP，则 Base Inventory 不完整。**Phase 2 — Scenario Extraction**：用户指定并命名功能、指令或场景后，每个 Scenario 使用独立 `Scenario - <scenario_name>` sheet；该 sheet 只从完整 Base Inventory 中提取相关 Register Access、Config Space、Dynamic Input、Cross 及其他适用基础 TP，进行场景化组织和解释，不新增 `scenario_name` 行字段。Scenario 不是新的 TP category，且不得生成、修改、裁剪、补充或重排任何基础 TP；当前功能名或指令名不得作为额外身份信息写入基础 TP_ID。输入资料本身明确包含的功能名、指令名或编码语义可自然保留在 `verification_goal` 等描述字段中，但不得仅因当前 Scenario 向基础 TP 注入额外场景条件。Scenario sheet 不重新定义基础覆盖空间，不复制完整 TP。根据请求选择完整生成、指定 category 生成、生命周期整理、覆盖策略映射、缺失输入报告或只读完备性审查；未指定时默认完整生成。
+各 TP category 独立判断和生成；一个 category 缺资料不得阻断其他 category。输出时按 category 聚合为结构化 TP 数据；默认交付为 Excel workbook 的对应 sheet。category 独立只表示生成逻辑互不阻塞，不表示一个 TP 一个文件或多个同类 TP 数据文件。
+
+### Prompt Target Isolation 与两阶段 gate（强制）
+
+用户 Prompt 中出现的具体指令、功能、场景、opcode 或目标对象，只能解释为 **Scenario Extraction Target**，不得解释为 Base Inventory 的提取过滤条件。Base Inventory 的唯一输入范围是用户提供的全部输入资料：`Base Inventory = F(All Input Documents)`；禁止使用 `Base Inventory = F(All Input Documents, Target Instruction)`。
+
+**Phase 1 — Base Inventory Generation**：暂时忽略目标名称和场景内容，基于全部输入资料独立建立完整 Register Access、Config Space、Dynamic Input、Cross inventory。Config 必须覆盖全部识别出的 `config_object.field`，Dynamic 必须覆盖全部识别出的动态参数空间，Cross 必须覆盖输入资料中全部明确给出的多对象关系。不得使用目标名称搜索或筛选对象；不得判断对象与目标“相关/不相关”；不得因目标未使用某寄存器、字段、参数或关系而跳过、删除或缩小任何基础 TP。出现“该对象与目标无关，因此不生成”的推理，属于 Target Leakage — ERROR。
+
+在进入 Phase 2 前执行 Base Inventory Completeness Gate：确认四类 inventory 均已按全部输入资料处理，且未使用目标过滤、删除或缩小 inventory item。全部通过时才可设定 `BASE_INVENTORY_COMPLETE = TRUE` 并进入 Scenario Extraction；否则为 `FALSE`，必须先补齐 Base Inventory，不得交付最终 Scenario TP。
+
+**Phase 2 — Scenario Extraction**：仅在 Base Inventory 完整后读取用户指定并命名的目标，即 `Scenario TP = G(Complete Base Inventory, Target Instruction)`。每个 Scenario 使用独立 `Scenario - <scenario_name>` sheet，从既有完整 inventory 提取相关 Register Access、Config Space、Dynamic Input、Cross 及其他适用基础 TP，并以 `related_tp_id` 建立追溯；不得重新生成一套目标专属的 Config、Dynamic 或 Cross TP。Scenario 不是新的 TP category，不得生成、修改、裁剪、补充或重排基础 TP。仅当既有 Output Result 边界适用时，可在此阶段增加场景特有的 Output Result TP；场景特有的缺失信息进入独立 missing-input report。Scenario sheet 不重新定义基础覆盖空间，也不复制完整 TP。
+
+当前功能名或指令名不得作为额外身份信息写入基础 TP_ID。输入资料本身明确包含的功能名、指令名或编码语义可自然保留在 `verification_goal` 等描述字段中，但不得仅因当前 Scenario 向基础 TP 注入额外场景条件。最终输出前必须确认：若删除 Prompt 中的目标名称，四份 Base Inventory 是否完全相同；只有答案为 YES 才可交付。根据请求选择完整生成、指定 category 生成、生命周期整理、覆盖策略映射、缺失输入报告或只读完备性审查；未指定时默认完整生成。
 
 每个候选项只有一种状态：
 
@@ -461,6 +473,8 @@ Skill 的核心输出是按统一 TP schema 生成、按 category 分组的结�
 19. 每个识别出的 Dynamic Input 参数空间是否均已有基础 TP、draft / blocked 状态或 missing 记录。
 20. 输入资料中每个明确的多对象关系是否均已有 Cross TP、draft / blocked 状态或 missing 记录。
 21. Register Access、Config Space、Dynamic Input、Cross 是否均已按输入资料完整处理；否则 Base Inventory 不得标记为完整。
+22. 是否已在进入每个 `Scenario - <scenario_name>` sheet 前通过 Base Inventory Completeness Gate，即 `BASE_INVENTORY_COMPLETE = TRUE`。
+23. 删除用户 Prompt 中的目标名称后，Register Access、Config Space、Dynamic Input、Cross 四份 Base Inventory 是否仍完全相同；若否，存在 Target Leakage，必须重新生成。
 
 ### 输出顺序
 
