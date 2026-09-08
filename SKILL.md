@@ -230,6 +230,14 @@ Output Result 只用于 DUT 输出对象本身存在的独立结果覆盖空间�
 
 基础 sheet 保持完整内容和原 TP_ID。Scenario sheet 只做场景化组织和解释，不重新定义基础覆盖空间。多个命名 Scenario 不得混合，也不新增 `scenario_name` 行字段。
 
+**Scenario Applicable Legality Closure**：Scenario legality completeness 的输入集合固定为 `Scenario Applicable Legality Set = H(Complete Base Inventory, Target Scenario)`。`Scenario Applicable Legality Set` 表示根据完整 Base Inventory 和当前 Scenario 上下文，可确定在当前 Scenario 下 applicable 的 Config Space / Dynamic Input legality semantics、constraints 与 Base Cross relations 集合。Scenario 生成必须先确定该集合，再生成对应 Scenario 表达和 `related_tp_id` 追溯；不得以已经生成的 `related_tp_id` 反向决定该集合。该集合是生成过程中的判定结果，不新增持久化模型或输出对象。
+
+`Scenario Applicable Legality Set` 仅覆盖当前 Scenario 涉及的 Config Space Base TP 和 Dynamic Input Base TP 中，在当前 Scenario 下 applicable 的 input-defined semantics / constraints，以及当前 Scenario 下 applicable 的 Base Cross relations。集合中的每个 legality semantic / relation 都必须在 Scenario 中建立对应 `related_tp_id` 追溯；实际值、范围、联合条件及对应行为继续写入现有 `scenario_value_or_constraint`。不得只摘录合法值而遗漏同一 Scenario 下成立的 negative / reserved / unsupported / conditional-invalid 等已定义语义。Register Access、Debug、Performance、Output Result 及其他 category 的场景关联继续按现有 Scenario Extraction 和对应 Category Rules 处理，不由该集合建立新的 completeness 机制。
+
+当值的 legality 或 behavior 依赖其他 Config / Dynamic 条件时，必须表达输入资料明确给出的完整条件与结果，例如 `SRC1_SEL=0x06 && DATA_TYPE=FP32 -> legal`、`SRC1_SEL=0x06 && DATA_TYPE=BF16 -> CFG_ERROR`；不得只写该值及简短注释，也不得自行推断关系。
+
+该 closure 不重新展开 Base coverage space：不复制完整 Base TP，不要求 Scenario 重新列出全部 Base values 或 bins，不要求 legal / reserved / unsupported / illegal 等类别逐项输出 `N/A`，不修改或收缩 Base Config / Dynamic / Cross TP，也不新增 Base-bin 到 Scenario-bin 的 mapping 字段或中间持久化模型。Base semantic / relation 在当前 Scenario 下明确不适用时无需输出；applicability 无法由输入资料唯一确定时，按 Scenario missing-input report 规则处理，不得猜测。
+
 ### 3.5 Base Legality / Scenario Legality
 
 - **Base legality**：Config Space / Dynamic Input 中单对象自身的完整 value/input space 及通用 valid / invalid / reserved / unsupported 语义，以及 Cross 中输入资料明确存在、脱离当前 Scenario 后仍成立的多对象通用关系。
@@ -316,7 +324,7 @@ Completeness Review 只检查和报告，不修改、补充或重新生成已有
 - **Base Inventory Completeness**：Register Access、Config Space、Dynamic Input、Cross 已按全部输入资料处理；适用对象均有 complete、draft 或 blocked TP，否则不得通过 Gate。
 - **Target Isolation**：删除 Prompt 目标名称后四份 Base Inventory 保持相同；Scenario 未改写、裁剪、补充或重排基础 TP。
 - **Lifecycle Closure**：状态符合 Lifecycle；每个 draft / blocked TP 均有完整 lifecycle missing-input 记录，仅 mapping 为空未触发 draft。
-- **Scenario Isolation / Legality**：每个命名 Scenario 独立；Scenario 字段各守职责；联合 constraint 追溯全部 Base TP；Scenario legality 未进入或收缩 Base Config、Dynamic、Cross；不确定时已生成独立 Scenario missing-input report。
+- **Scenario Isolation / Legality**：每个命名 Scenario 独立；Scenario 字段各守职责；联合 constraint 追溯全部 Base TP；Scenario legality 未进入或收缩 Base Config、Dynamic、Cross。以 Complete Base Inventory 和 Target Scenario 求得 `Scenario Applicable Legality Set`，检查 `Scenario Expression + related_tp_id traceability` 是否完整覆盖该集合；只有 `Scenario Covered Legality Set == Scenario Applicable Legality Set` 时 legality completeness 才通过。任何 applicable legality semantic / relation 未被表达或未建立追溯时，`Scenario legality completeness = FAIL`，不得交付最终 workbook。applicability 无法由输入资料唯一确定时，不得猜测，并按现有规则生成独立 Scenario missing-input report。
 - **Coverage Integrity**：coverage strategy 与目标、category、监测和测量边界一致；implementation inputs 与 implementation object mapping 未混用。
 - **No Inference**：未补充输入资料未定义的设计语义、行为、路径、采样、阈值、输出类别或 debug capability。
 - **Output Contract**：sheet 组成、schema、输出顺序、高亮、换行和 merge 均符合本章；若任一 Gate 不通过，不得交付。
