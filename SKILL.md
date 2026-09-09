@@ -68,7 +68,7 @@ TP 粒度首先服从当前 category 的对象模型；只有该 category 明确
 
 动态参数的 coverage strategy 至少定义 coverage space（range / data / address / format / mode）、coverage target（参数名或字段定义 bit range）和 bins。`coverage_target` 必须写出具体硬件对象、字段或编码空间，不得使用“对应覆盖空间”等泛称。`illegal_bins` 仅在输入资料明确规定某采样值不应出现时输出；`ignore_bins` 仅在明确不纳入覆盖统计时输出。不得为了字段完整性制造空的或无意义的 `illegal_bins` / `ignore_bins`。
 
-valid、invalid、reserved、unsupported 是语义分类，不自动对应 bin 类型。主动作为验证输入覆盖的 invalid、reserved、unsupported 值使用普通 `bins`；仅当输入资料明确规定某采样值不应出现时使用 `illegal_bins`；`ignore_bins` 仅用于明确不纳入覆盖统计的值。`illegal_bins` 不表示 DUT 必须报错，`ignore_bins` 不表示 DUT 行为异常。
+valid、invalid、reserved、unsupported 是语义分类，不自动对应 bin 类型。主动作为验证目标覆盖的 negative / invalid / reserved / unsupported 输入使用普通 `bins`；例如输入非法配置并验证 DUT 返回 CFG_ERROR、RF_IDX_ERROR 或其他输入资料明确的错误行为，属于主动 negative verification target。不得因输入在设计语义上 illegal 就自动使用 `illegal_bins`；只有输入资料明确规定该采样值本身不应在覆盖采样中出现时才使用 `illegal_bins`。error expectation 与 bin type 职责独立。`ignore_bins` 仅用于明确不纳入覆盖统计的值；`illegal_bins` 不表示 DUT 必须报错，`ignore_bins` 不表示 DUT 行为异常。
 
 coverage implementation inputs 包括 HDL path、signal、monitor mapping、sample event 等，用于后续生成或完善具体实现。若已选择的 coverage strategy 必须依赖这些输入才能执行或判定，缺失时按 Lifecycle 标记为 draft。
 
@@ -142,13 +142,13 @@ Dynamic Input 固定为单对象 input-space TP。`parameter` 固定表示一个
 
 ### 2.4 Cross
 
-Cross 固定为多对象关系 TP，用于输入资料明确给出的 Configuration / Dynamic Input 联合取值约束、映射或结果，可覆盖 Configuration × Configuration、Dynamic Input × Dynamic Input、Configuration × Dynamic Input。只有联合取值产生单个 Config 或 Dynamic TP 无法表达的新关系时才生成，不默认展开 Cartesian cross。单字段 reserved/illegal encoding 不作为 Cross invalid combination。
+Cross 固定为多对象关系 TP，只用于输入资料明确存在、且脱离当前 instruction / function / Scenario 后仍成立的 Configuration / Dynamic Input 联合取值约束、映射或结果，可覆盖 Configuration × Configuration、Dynamic Input × Dynamic Input、Configuration × Dynamic Input。只有 scenario-independent 的联合取值产生单个 Config 或 Dynamic TP 无法表达的新关系时才生成，不默认展开 Cartesian cross。仅在特定 instruction / function / Scenario 上下文成立的关系进入 Scenario legality / Scenario expression，不生成 Base Cross。单字段 reserved/illegal encoding 不作为 Cross invalid combination。
 
 `verification_goal` 直接使用输入资料中的对象、字段和值表达完整联合条件及对应关系或结果，优先采用 `<joint_condition> -> <relation_or_result>`；能形式化时不补写等价长自然语言。输入资料明确定义无效组合时，同样表达无效联合条件及对应关系或结果。
 
 输入资料已明确 invalid/unsupported 组合，且验证对象和方向成立，但 relation、result 或 behavior 缺失导致目标不完整时生成 draft，并在 lifecycle missing-input report 记录待补内容。验证对象、目标方向、策略方向或必要行为判定本身无法成立时标记 blocked。
 
-Cross 的 coverage strategy 不设固定默认值，按关系选择 testcase、covergroup 或 assertion。Cross 属于 Base Inventory，独立于 Scenario 生成，不根据 Scenario 临时生成、裁剪或修改。`expected_result` 默认不输出，仅在结果无法自然并入 `verification_goal` 的逻辑关系表达式时允许输出。
+Cross 的 coverage strategy 不设固定默认值，按关系选择 testcase、covergroup 或 assertion。Cross 属于 Base Inventory，独立于 Scenario 生成；不得因为 Prompt 指定 instruction / function / Scenario 而将 target-specific relation 写入 Base Cross，也不根据 Scenario 临时生成、裁剪或修改。`expected_result` 默认不输出，仅在结果无法自然并入 `verification_goal` 的逻辑关系表达式时允许输出。
 
 ### 2.5 Debug
 
@@ -180,11 +180,12 @@ TP ID:
 - <按验证目标选择 testcase / covergroup / assertion>
 ```
 
+- coverage / observation target 描述测量什么，即 measured latency、throughput、bandwidth 等 performance metric；不得承载 allowed range、threshold、acceptance interval 或其他 pass/fail criteria。
 - `verification_scenario` 写明输入资料定义的性能条件和 DUT monitor 或软件可观察对象，不展开监测实现步骤。
-- `expected_result` 写明输入资料定义的指标公式或统计方式、测量边界和阈值，并与观测对象匹配。
+- `expected_result` 描述允许什么结果，必须承载输入资料定义的指标公式或统计方式、测量边界、allowed range、threshold 或 acceptance rule，并与观测对象匹配。
 - 外部干扰条件仅在影响覆盖空间、预期行为或输入资料明确要求时写入。
 - 性能 TP 可与功能 TP 共用 testcase，但 TP 不合并。
-- coverage strategy 必须与监测方式、测量边界一致。性能分布或趋势分析的 covergroup 不默认生成，仅在输入资料明确要求时输出。
+- coverage strategy 仅描述如何覆盖或观测 performance metric，并与监测方式、测量边界一致。性能分布或趋势分析的 covergroup 不默认生成，仅在输入资料明确要求时输出。
 
 性能场景、监测方式和测量边界按输入资料生成，不使用固定完整 demo。
 
@@ -212,9 +213,9 @@ Output Result 只用于 DUT 输出对象本身存在的独立结果覆盖空间�
 
 ### 3.2 Base Inventory
 
-`Base Inventory = F(All Input Documents)`；禁止使用 `Base Inventory = F(All Input Documents, Target Instruction)`。Base Inventory 包含完整 Register Access、Config Space、Dynamic Input、Cross inventory。
+`Base Inventory = F(All Input Documents)`；禁止使用 `Base Inventory = F(All Input Documents, Target Instruction)`。Base Inventory 包含完整 Register Access、Config Space、Dynamic Input、Cross inventory。Base 不受 Target Scenario 过滤，但 Base Cross 的 relation 仍必须脱离当前 instruction / function / Scenario 后成立；不受 Target 过滤不表示允许 target-specific relation 进入 Base。
 
-用户 Prompt 中的具体指令、功能、场景、opcode 或目标对象只作为 Scenario Extraction Target，不得作为 Base Inventory 过滤条件。Phase 1 暂时忽略目标名称和场景内容，基于全部输入资料建立 inventory：覆盖所有适用 Register Access 对象、全部 `config_object.field`、全部 Dynamic 参数空间和全部明确多对象关系。不得搜索或筛选与目标“相关”的对象，也不得因当前目标未使用而跳过、删除或缩小基础 TP；否则属于 Target Leakage。
+用户 Prompt 中的具体指令、功能、场景、opcode 或目标对象只作为 Scenario Extraction Target，不得作为 Base Inventory 过滤条件。Phase 1 暂时忽略目标名称和场景内容，基于全部输入资料建立 inventory：覆盖所有适用 Register Access 对象、全部 `config_object.field`、全部 Dynamic 参数空间和全部明确且 scenario-independent 的多对象关系。不得搜索或筛选与目标“相关”的对象，也不得因当前目标未使用而跳过、删除或缩小基础 TP；否则属于 Target Leakage。
 
 ### 3.3 Base Inventory Completeness Gate
 
@@ -224,15 +225,19 @@ Output Result 只用于 DUT 输出对象本身存在的独立结果覆盖空间�
 
 ### 3.4 Scenario Extraction
 
-仅在 Base Inventory 完整后读取用户指定并命名的目标：`Scenario Extraction = G(Complete Base Inventory, Target Scenario)`。
+仅在 Base Inventory 完整后执行：`Scenario Extraction = G(Complete Base Inventory, All Input Documents, Target Scenario)`。
+
+三类输入职责固定为：`Complete Base Inventory` 提供 scenario-independent Base TP 与 Base semantics，用于 Scenario 关联、复用和 legality closure，但不包含仅在当前 instruction / function / Scenario 下成立的 relation；`All Input Documents` 提供完整设计语义，包括 scenario-independent 和 instruction / function / Scenario-specific semantics，scenario-specific relation 可直接进入 Scenario expression，但不得因此生成 Base Cross；`Target Scenario` 提供当前场景上下文，用于判断输入资料中的 semantics / relations 是否 applicable。Base Inventory 不是 Scenario semantic source 的全集，不得为给 Scenario 制造 semantic source 而把 scenario-specific relation 放回 Base Cross。
+
+Scenario expression 的 semantic source 分为两类：Base-derived semantic 已存在于 Base TP，Scenario 直接复用；Scenario-specific semantic 只在当前 instruction / function / Scenario 下成立，直接来自 All Input Documents 中明确的 scenario-specific definition，不要求对应 Base Cross 或伪造 Base TP。Scenario 结合 `All Input Documents + Target Scenario` 判定 scenario-specific semantics，并与 Complete Base Inventory 中 applicable 的 Base semantics 一起形成 Scenario expression。
 
 每个 Scenario 使用独立 `Scenario - <scenario_name>` sheet，从完整 inventory 提取相关 Register Access、Config Space、Dynamic Input、Cross 及其他适用基础 TP，并通过 `related_tp_id` 追溯。不得重新生成目标专属 Config、Dynamic 或 Cross TP。Scenario 不是 TP category，不得生成、修改、裁剪、补充或重排基础 TP，也不得复制完整 TP。仅当 Output Result 的既有边界适用时，可增加场景特有 Output Result TP。
 
 基础 sheet 保持完整内容和原 TP_ID。Scenario sheet 只做场景化组织和解释，不重新定义基础覆盖空间。多个命名 Scenario 不得混合，也不新增 `scenario_name` 行字段。
 
-**Scenario Applicable Legality Closure**：Scenario legality completeness 的输入集合固定为 `Scenario Applicable Legality Set = H(Complete Base Inventory, Target Scenario)`。`Scenario Applicable Legality Set` 表示根据完整 Base Inventory 和当前 Scenario 上下文，可确定在当前 Scenario 下 applicable 的 Config Space / Dynamic Input legality semantics、constraints 与 Base Cross relations 集合。Scenario 生成必须先确定该集合，再生成对应 Scenario 表达和 `related_tp_id` 追溯；不得以已经生成的 `related_tp_id` 反向决定该集合。该集合是生成过程中的判定结果，不新增持久化模型或输出对象。
+**Scenario Applicable Legality Closure**：Scenario legality completeness 的输入集合固定为 `Scenario Applicable Legality Set = H(Complete Base Inventory, All Input Documents, Target Scenario)`。该集合由 Complete Base Inventory 中 applicable 的 Base legality semantics / Base Cross relations、All Input Documents 中明确的 scenario-specific legality semantics / relations，以及 Target Scenario 上下文共同确定；不得限定为只能来自 Base TP。Scenario 生成必须先确定该集合，再生成对应 Scenario 表达和 Base TP `related_tp_id` 关联；不得以已经生成的 `related_tp_id` 反向决定该集合。该集合是生成过程中的判定结果，不新增持久化模型或输出对象。
 
-`Scenario Applicable Legality Set` 仅覆盖当前 Scenario 涉及的 Config Space Base TP 和 Dynamic Input Base TP 中，在当前 Scenario 下 applicable 的 input-defined semantics / constraints，以及当前 Scenario 下 applicable 的 Base Cross relations。集合中的每个 legality semantic / relation 都必须在 Scenario 中建立对应 `related_tp_id` 追溯；实际值、范围、联合条件及对应行为继续写入现有 `scenario_value_or_constraint`。不得只摘录合法值而遗漏同一 Scenario 下成立的 negative / reserved / unsupported / conditional-invalid 等已定义语义。Register Access、Debug、Performance、Output Result 及其他 category 的场景关联继续按现有 Scenario Extraction 和对应 Category Rules 处理，不由该集合建立新的 completeness 机制。
+`Scenario Applicable Legality Set` 仅覆盖当前 Scenario 涉及的 Config Space / Dynamic Input applicable legality semantics / constraints，以及 applicable Base Cross relations 和输入资料明确的 scenario-specific legality relations。集合中的每个 legality semantic / relation 都必须在 Scenario 中表达；实际值、范围、联合条件及对应行为继续写入现有 `scenario_value_or_constraint`。Base-derived semantic 按其 Base TP 建立 `related_tp_id`；scenario-specific legality relation 不生成 Base Cross，也不要求 semantic-source TP_ID，`related_tp_id` 仅关联该 expression 实际依赖或约束的 Base verification object（若存在）。不得只摘录合法值而遗漏同一 Scenario 下成立的 negative / reserved / unsupported / conditional-invalid 等已定义语义。`Scenario legality completeness != Scenario dependency completeness`；当前不建立通用 Scenario dependency completeness。Register Access、Debug、Performance、Output Result 及其他 category 的场景关联继续按现有 Scenario Extraction 和对应 Category Rules 处理，不自动并入该集合，也不新增 dependency set、graph、mapping、字段或 sheet。
 
 当值的 legality 或 behavior 依赖其他 Config / Dynamic 条件时，必须表达输入资料明确给出的完整条件与结果，例如 `SRC1_SEL=0x06 && DATA_TYPE=FP32 -> legal`、`SRC1_SEL=0x06 && DATA_TYPE=BF16 -> CFG_ERROR`；不得只写该值及简短注释，也不得自行推断关系。
 
@@ -243,7 +248,7 @@ Output Result 只用于 DUT 输出对象本身存在的独立结果覆盖空间�
 - **Base legality**：Config Space / Dynamic Input 中单对象自身的完整 value/input space 及通用 valid / invalid / reserved / unsupported 语义，以及 Cross 中输入资料明确存在、脱离当前 Scenario 后仍成立的多对象通用关系。
 - **Scenario legality**：Base Config / Dynamic 参数本身合法，但当前 Scenario 的操作结构、对象组合、选择关系或其他上下文只允许其中部分取值或组合；该限制仅在当前目标 Scenario 成立。
 
-Scenario Extraction 必须检查目标 instruction / function / scenario 是否引入 Scenario legality。资料明确时，将具体允许值、禁止值、范围或联合条件写入 Scenario sheet 的 `scenario_value_or_constraint`，并通过 `related_tp_id` 追溯全部参与的 Base TP。不得回写或收缩 Base Config / Dynamic value space，不得修改、补充或重排 Base TP，也不得仅因 Scenario 生成新的基础 TP、通用字段或 category。
+Scenario Extraction 必须检查目标 instruction / function / scenario 是否引入 Scenario legality。资料明确时，将具体允许值、禁止值、范围或联合条件写入 Scenario sheet 的 `scenario_value_or_constraint`。Base-derived semantic 关联提供该 semantic 的 Base TP；scenario-specific semantic 直接来自 All Input Documents，不要求 Base semantic source，其 `related_tp_id` 仅关联实际依赖或约束的 Base verification object（若存在），不得将该对象宣称为 relation semantic source。不得为满足 traceability 生成 Base Cross、伪造 Base TP，或因对象仅出现在联合条件中就机械加入其单对象 Base TP。不得回写或收缩 Base Config / Dynamic value space，不得修改、补充或重排 Base TP，也不得仅因 Scenario 生成新的基础 TP、通用字段或 category。
 
 ### 3.6 Missing-input Flow
 
@@ -281,7 +286,7 @@ Completeness Review 只检查和报告，不修改、补充或重新生成已有
 
 每条 Scenario 关联至少包含 `related_tp_id`、对象角色、`scenario_value_or_constraint`、`why_relevant_to_scenario`、`scenario_application`。
 
-- `related_tp_id` 可引用一个或多个 Base TP。单对象 constraint 引用对应一个 Base TP；联合 constraint 引用所有参与 TP；多个 TP_ID 一条一行。
+- `related_tp_id` 用于关联当前 Scenario expression 所依赖或约束的 Base TP，承担 Base TP traceability，不承担全部设计语义来源追溯。Base-derived semantic 指向提供该 semantic 的 Base Config / Dynamic TP；复用 scenario-independent Base Cross relation 时指向该 Base Cross TP；scenario-specific semantic 不要求 Base semantic source，仅在存在相关 Base verification object 时关联该对象。它不是设计资料 source reference、完整 semantic provenance、dependency list 或对象参与关系的机械枚举；不得为满足该字段生成 Base Cross、伪造 Base TP，或将参与对象宣称为 scenario-specific relation 的 semantic source。确需关联多个 Base TP 时，多个 TP_ID 一条一行。
 - `scenario_value_or_constraint` 表达当前 Scenario 的实际取值、范围或 constraint。输入资料已明确值语义时，必须按 `<value> /* <meaning> */` 附最小注释；多个值或 constraint 一条一行。Scenario legality 的允许值、禁止值、范围或联合条件统一写入该字段。
 - `why_relevant_to_scenario` 只说明该基础 TP 为什么与当前 Scenario 相关。
 - `scenario_application` 只说明该对象或约束在当前 Scenario 中起什么作用，不承载具体值、范围或联合条件，不重复 value semantics，不复制基础 TP 的 `verification_goal` 或 `coverage_strategy`，也不得只写“沿用基础 TP 定义的覆盖空间”“不重新定义 bins”等无场景语义信息。
@@ -324,7 +329,7 @@ Completeness Review 只检查和报告，不修改、补充或重新生成已有
 - **Base Inventory Completeness**：Register Access、Config Space、Dynamic Input、Cross 已按全部输入资料处理；适用对象均有 complete、draft 或 blocked TP，否则不得通过 Gate。
 - **Target Isolation**：删除 Prompt 目标名称后四份 Base Inventory 保持相同；Scenario 未改写、裁剪、补充或重排基础 TP。
 - **Lifecycle Closure**：状态符合 Lifecycle；每个 draft / blocked TP 均有完整 lifecycle missing-input 记录，仅 mapping 为空未触发 draft。
-- **Scenario Isolation / Legality**：每个命名 Scenario 独立；Scenario 字段各守职责；联合 constraint 追溯全部 Base TP；Scenario legality 未进入或收缩 Base Config、Dynamic、Cross。以 Complete Base Inventory 和 Target Scenario 求得 `Scenario Applicable Legality Set`，检查 `Scenario Expression + related_tp_id traceability` 是否完整覆盖该集合；只有 `Scenario Covered Legality Set == Scenario Applicable Legality Set` 时 legality completeness 才通过。任何 applicable legality semantic / relation 未被表达或未建立追溯时，`Scenario legality completeness = FAIL`，不得交付最终 workbook。applicability 无法由输入资料唯一确定时，不得猜测，并按现有规则生成独立 Scenario missing-input report。
-- **Coverage Integrity**：coverage strategy 与目标、category、监测和测量边界一致；implementation inputs 与 implementation object mapping 未混用。
+- **Scenario Isolation / Legality**：每个命名 Scenario 独立，Scenario 字段各守职责，Scenario legality 未进入或收缩 Base Config、Dynamic、Cross。分别检查：1) **Scenario semantic completeness**：由 Complete Base Inventory、All Input Documents 和 Target Scenario 确定的 applicable Base-derived 与 scenario-specific legality semantics / relations 是否全部表达，只有 `Scenario Covered Legality Set == Scenario Applicable Legality Set` 时通过；2) **Base TP traceability**：与 Base verification object 相关的 Scenario expression 是否通过 `related_tp_id` 正确关联对应 Base TP。不得把参与对象宣称为 semantic source，也不得要求 scenario-specific semantic 必须有 Base semantic-source TP。任何 applicable semantic / relation 未表达或 Base TP 关联错误时，`Scenario legality completeness = FAIL`，不得交付最终 workbook。该 closure 不代表 Scenario dependency completeness；applicability 无法唯一确定时不得猜测，并按现有规则生成独立 Scenario missing-input report。
+- **Coverage Integrity**：coverage strategy 与验证 intent、category、监测和测量边界一致；主动 negative verification target 使用普通 bins，仅在采样值本身被明确规定不应出现时使用 illegal_bins；error expectation 不决定 bin type。implementation inputs 与 implementation object mapping 未混用。
 - **No Inference**：未补充输入资料未定义的设计语义、行为、路径、采样、阈值、输出类别或 debug capability。
 - **Output Contract**：sheet 组成、schema、输出顺序、高亮、换行和 merge 均符合本章；若任一 Gate 不通过，不得交付。
