@@ -24,7 +24,7 @@ TP category 固定为：
 - Register Access：一个明确的寄存器访问行为，即 access action + expected behavior。
 - Config Space：一个配置对象的完整单对象 value space，即 values / ranges / categories + input-defined semantics。
 - Dynamic Input：一个动态输入对象的完整单对象 input space，即 values / ranges / categories + input-defined semantics。
-- Cross：两个或多个 Config / Dynamic 对象之间的明确联合关系，即 joint condition -> relation / result。
+- Cross：两个或多个 Config / Dynamic 对象之间，经 Relation Ownership 判断为 scenario-independent 的明确联合关系，即 `[applicability_condition &&] joint_condition -> relation_or_result`；applicability condition 仅在输入资料实际定义时存在，不得人为制造。
 - Debug：一个输入资料明确支持的异步输入级 debug capability。
 - Performance：一个原子工作场景的性能目标。
 - Output Result：一个 DUT 输出对象本身的独立结果覆盖空间。
@@ -38,7 +38,7 @@ TP 粒度首先服从当前 category 的对象模型；只有该 category 明确
 所有 TP 均以 `TP_ID`、`lifecycle_status`、必要的 category-specific identifier fields、`verification_goal` 和 `coverage_strategy` 为基础。`verification_scenario` 和 `expected_result` 仅在当前 category 或当前 TP 需要时输出。对 schema 已定义包含 `coverage_strategy_mapping` 的 category，该字段作为固定列保留，内容未知时允许为空。
 
 - category-specific identifier fields 只定位覆盖对象，不承载验证目标、场景、预期结果或覆盖逻辑。固定定位字段为 Dynamic Input 的 `parameter`、`parameter_type`，Config Space 的 `config_object`、`field`，以及 Debug 的 debug capability。Performance、Register Access、Cross 与 Output Result 默认不增加定位字段。
-- `verification_goal` 描述验证什么。Register Access 写当前访问动作和预期结果；Config Space 写当前 field 的完整 value space 及输入资料明确语义；Dynamic Input 写当前 parameter 的完整 input space 及输入资料明确语义；Cross 写完整联合条件及对应关系或结果，并优先使用 `<joint_condition> -> <relation_or_result>`。
+- `verification_goal` 描述验证什么。Register Access 写当前访问动作和预期结果；Config Space 写当前 field 的完整 value space 及输入资料明确语义；Dynamic Input 写当前 parameter 的完整 input space 及输入资料明确语义；Cross 写完整的 `[applicability_condition &&] joint_condition -> relation_or_result`，applicability condition 仅在输入资料实际定义时保留，多个 independent branch 一条一行，并遵守 Constraint Expression Rule。
 - `verification_scenario` 只描述覆盖空间或状态及观测点，不展开 testcase 实现。
 - `expected_result` 描述 DUT 可观测行为，不得引用未展开的规格描述。
 
@@ -92,7 +92,8 @@ coverage implementation inputs 包括 HDL path、signal、monitor mapping、samp
 - 不推断输入资料未定义的 HDL path、非法处理、输出类别、性能阈值、采样条件、监测方式或其他设计行为。
 - TP 描述必须具体，不得使用“输入件定义的代表值”“按输入件定义”等空泛描述。
 - 凡是能由上层分组、Excel sheet、TP_ID 或固定规则唯一确定，且删除后不影响 TP 理解、实现或评审的信息，不在更低层重复输出。不得机械输出 scope、输入对象 metadata、assembly、fixed opcode、execution unit list 或规则解释。
-- Config Space 和 Dynamic Input 的输入资料明确语义即使包含 DUT 行为描述，也保留在对应单对象空间中；多对象联合关系进入 Cross，输出对象自身的独立覆盖空间进入 Output Result，寄存器访问动作及其直接 side effect 进入 Register Access。
+- Config Space 和 Dynamic Input 的输入资料明确语义即使包含 DUT 行为描述，也保留在对应单对象空间中；多对象联合关系先进入 Relation Ownership 判断，scenario-independent relation 进入 Base Cross，scenario-specific relation 进入 Scenario；输出对象自身的独立覆盖空间进入 Output Result，寄存器访问动作及其直接 side effect 进入 Register Access。
+- 对 Cross `verification_goal` 和 Scenario `scenario_value_or_constraint` 中可形式化的 constraint / relation，使用统一 Constraint Expression Rule：每个可独立判断的 constraint 独立表达，多个 constraint 一条一行；优先使用 `&&`、`||`、`!`、`==`、`!=`、`in`、明确 range、`count(X) <= N`、`unique(X)` 等逻辑、比较、集合或计数表达。positive condition 与 negative/error condition 分别表达，完整保留 applicability condition 及其对应 result。简洁、减少文字、减少行数或减少 TP 数量不是独立优化目标，不得因此消除 condition boundary、合并 independent constraints、混合 positive/negative branch 或模糊 condition/result 对应。自然语言只用于补充逻辑符号无法表达的最小业务含义、必要对象语义或无法可靠形式化的输入描述；只要不改变设计语义即可形式化，就不得复制难读长句作为最终表达。
 - 一个字段描述可以同时产生 Register Access TP 和 Config Space TP，但必须拆分验证目标；Config Space 验证软件配置状态及配置约束，不验证寄存器存储行为。
 
 ## 2. Category Rules
@@ -136,19 +137,21 @@ Dynamic Input 固定为单对象 input-space TP。`parameter` 固定表示一个
 
 若字段定义 bit range 大于实际生效 bit range，扫描字段定义的完整 bit range；实际有效位、保留位和非法处理方式仅在输入资料明确时写入 `verification_goal`。未扫描参数使用输入资料定义的合法 baseline，baseline 不是输出字段。
 
-动态输入资料可包含参数定义、参数类型、参数范围、参数到 HDL signal/path 的映射、有效接收或采样事件、clock/reset、非法/reserved 行为及其他明确约束。固定 opcode 或其他静态识别字段只作为当前动态对象的静态条件，不自动作为扫描项；opcode decode 本质上属于输入资料明确的多对象联合关系时，按 Cross 处理。
+动态输入资料可包含参数定义、参数类型、参数范围、参数到 HDL signal/path 的映射、有效接收或采样事件、clock/reset、非法/reserved 行为及其他明确约束。固定 opcode 或其他静态识别字段只作为当前动态对象的静态条件，不自动作为扫描项；opcode decode 本质上属于输入资料明确的多对象联合关系时，进入 Relation Extraction 和 Ownership 判断。
 
-基础 Dynamic TP 不因当前功能场景中的 Configuration 而裁剪，也不得仅因 Scenario 注入额外条件。多个 Dynamic 参数间的明确联合关系生成 Cross TP。
+基础 Dynamic TP 不因当前功能场景中的 Configuration 而裁剪，也不得仅因 Scenario 注入额外条件。多个 Dynamic 参数间的明确联合关系进入 Relation Extraction 和 Ownership 判断，不得在 Dynamic Input 阶段直接决定生成 Base Cross。
 
 ### 2.4 Cross
 
-Cross 固定为多对象关系 TP，只用于输入资料明确存在、且脱离当前 instruction / function / Scenario 后仍成立的 Configuration / Dynamic Input 联合取值约束、映射或结果，可覆盖 Configuration × Configuration、Dynamic Input × Dynamic Input、Configuration × Dynamic Input。只有 scenario-independent 的联合取值产生单个 Config 或 Dynamic TP 无法表达的新关系时才生成，不默认展开 Cartesian cross。仅在特定 instruction / function / Scenario 上下文成立的关系进入 Scenario legality / Scenario expression，不生成 Base Cross。单字段 reserved/illegal encoding 不作为 Cross invalid combination。
+Cross 固定为多对象关系 TP，只承载经 Input Processing 的 Relation Ownership 判断为 scenario-independent 的 Configuration / Dynamic Input 联合取值 constraint、mapping、legality 或 result，可覆盖 Configuration × Configuration、Dynamic Input × Dynamic Input、Configuration × Dynamic Input。Config / Dynamic 仍只负责单对象完整 value/input space；relation 即使已出现在单对象 `verification_goal` 中，也不表示已完成关系覆盖。
 
-`verification_goal` 直接使用输入资料中的对象、字段和值表达完整联合条件及对应关系或结果，优先采用 `<joint_condition> -> <relation_or_result>`；能形式化时不补写等价长自然语言。输入资料明确定义无效组合时，同样表达无效联合条件及对应关系或结果。
+Base Cross 只承载 scenario-independent Relation Atom：relation 脱离当前用户指定的 Target Scenario 后仍是输入资料定义的通用模块行为。`target-independent != condition-free`；relation 包含 opcode、mode、instruction class、producer type 或其他 applicability condition，并不自动成为 Scenario-specific relation。只有 relation 本身仅依赖当前 instruction / function / Scenario 定义才成立时，才进入 Scenario legality / Scenario expression。不得一看到条件就移入 Scenario，不得因 Prompt 指定目标而把 target-specific relation 放入 Base Cross，也不默认展开 Cartesian cross；ownership 无法唯一确定时不得猜测，按 Missing-input Flow 处理。单字段 reserved/illegal encoding 不作为 Cross invalid combination。
 
-输入资料已明确 invalid/unsupported 组合，且验证对象和方向成立，但 relation、result 或 behavior 缺失导致目标不完整时生成 draft，并在 lifecycle missing-input report 记录待补内容。验证对象、目标方向、策略方向或必要行为判定本身无法成立时标记 blocked。
+`verification_goal` 直接表达每个 Relation Atom 在存在时的 applicability condition，以及完整 joint condition 与 relation / result，并遵守 Global Boundaries 的 Constraint Expression Rule。多个 independent branch 一条一行；输入资料明确定义无效组合时，同样分别表达完整条件及对应关系或结果。
 
-Cross 的 coverage strategy 不设固定默认值，按关系选择 testcase、covergroup 或 assertion。Cross 属于 Base Inventory，独立于 Scenario 生成；不得因为 Prompt 指定 instruction / function / Scenario 而将 target-specific relation 写入 Base Cross，也不根据 Scenario 临时生成、裁剪或修改。`expected_result` 默认不输出，仅在结果无法自然并入 `verification_goal` 的逻辑关系表达式时允许输出。
+允许多个 Relation Atom 合并为一个 Cross TP，但必须 lossless：relation 结构一致，且 applicability condition、joint condition、relation / result 均未丢失，coverage strategy 能证明各 relation branch 已覆盖。不得使用 compatible/incompatible producer、valid/invalid combination、legal/illegal source 等宽泛概括隐藏输入资料明确的 consumer、source field、producer encoding、opcode、datatype、mode、type matching 或其他联合条件；若 reviewer 无法仅根据 Cross TP 判断原始各 branch 是否覆盖，则不得合并。
+
+Cross 的 coverage strategy 不设固定默认值，按关系选择 testcase、covergroup 或 assertion，并必须对应 `verification_goal` 中的具体 relation branch。包含多个 branch 时，策略必须能证明每个 branch 均被覆盖，不得只写 compatible、mismatch 等抽象类别。输入资料已明确 invalid/unsupported 组合，且验证对象和方向成立，但 relation、result 或 behavior 缺失导致目标不完整时生成 draft，并在 lifecycle missing-input report 记录待补内容；验证对象、目标方向、策略方向或必要行为判定本身无法成立时标记 blocked。Cross 属于 Base Inventory，独立于 Scenario 生成，不根据 Scenario 临时生成、裁剪或修改。`expected_result` 默认不输出，仅在结果无法自然并入 `verification_goal` 的逻辑关系表达式时允许输出。
 
 ### 2.5 Debug
 
@@ -209,17 +212,22 @@ Output Result 只用于 DUT 输出对象本身存在的独立结果覆盖空间�
 
 某项信息是否为当前 TP 必需，由 Core Model、Lifecycle、Coverage Model 和对应 Category Rules 判断。coverage implementation inputs 仅在已选择的 coverage strategy 必须依赖它们执行或判定时，其缺失才导致 draft；不得因本节列举的逻辑信息块改变 complete / draft / blocked 判定。
 
+所有 Config / Dynamic multi-object relation 使用唯一处理流：`All Input Documents -> Relation Extraction -> Relation Atom -> Ownership(Base Cross / Scenario-specific / Pending) -> Cross TP / Scenario Expression / relation ownership missing-input -> Lossless Coverage Closure`。Relation Extraction 不使用 Target Scenario 过滤，从 module spec、Config、Dynamic Input、功能描述、instruction/function 描述等实际内容中识别两个或多个 Config / Dynamic 对象共同决定的 constraint、mapping、legality、DUT result 或其他明确关系；Config / Dynamic `verification_goal` 中出现的 multi-object semantic 也必须进入该流程，不得由任何 category 旁路决定归属。
+
+内部最小判断单位为 `Relation Atom = [applicability_condition &&] joint_condition -> relation_or_result`：`applicability_condition` 是可选的设计规则适用条件；relation 不需要额外适用条件时可以为空，此时 Relation Atom 仅由 `joint_condition` 决定，例如 `A=0 || B=0 -> RESULT`，不得人为制造 applicability condition。`joint_condition` 表示两个或多个 Config / Dynamic 对象的联合条件，`relation_or_result` 表示输入资料明确的 constraint、mapping、legality、DUT result 或其他关系。Relation Atom 只用于生成中的识别、归属和完整性判断，不新增 category、sheet、输出字段或持久化中间文件。
+
+Ownership 只判断 relation 是否必须依赖当前 Target Scenario 才成立：脱离当前 Target Scenario 仍成立的通用模块关系进入 Base Cross；仅在当前 instruction / function / Scenario 定义下存在的关系进入 Scenario；无法唯一判断时进入 relation ownership Pending。Pending 不生成猜测性 Base Cross、Scenario expression、虚假 TP_ID，也不借用既有 TP 的 lifecycle。
 根据请求选择完整生成、指定 category 生成、生命周期整理、覆盖策略映射、缺失输入报告或只读 Completeness Review；未指定时默认完整生成。
 
 ### 3.2 Base Inventory
 
 `Base Inventory = F(All Input Documents)`；禁止使用 `Base Inventory = F(All Input Documents, Target Instruction)`。Base Inventory 包含完整 Register Access、Config Space、Dynamic Input、Cross inventory。Base 不受 Target Scenario 过滤，但 Base Cross 的 relation 仍必须脱离当前 instruction / function / Scenario 后成立；不受 Target 过滤不表示允许 target-specific relation 进入 Base。
 
-用户 Prompt 中的具体指令、功能、场景、opcode 或目标对象只作为 Scenario Extraction Target，不得作为 Base Inventory 过滤条件。Phase 1 暂时忽略目标名称和场景内容，基于全部输入资料建立 inventory：覆盖所有适用 Register Access 对象、全部 `config_object.field`、全部 Dynamic 参数空间和全部明确且 scenario-independent 的多对象关系。不得搜索或筛选与目标“相关”的对象，也不得因当前目标未使用而跳过、删除或缩小基础 TP；否则属于 Target Leakage。
+用户 Prompt 中的具体指令、功能、场景、opcode 或目标对象只作为 Scenario Extraction Target，不得作为 Base Inventory 过滤条件。Phase 1 暂时忽略目标名称和场景内容，基于全部输入资料建立 inventory：覆盖所有适用 Register Access 对象、全部 `config_object.field`、全部 Dynamic 参数空间，并按 Cross Category Rules 对全部已识别 Relation Atom 完成 ownership 判断，承载所有明确且 scenario-independent 的多对象关系。不得搜索或筛选与目标“相关”的对象，也不得因当前目标未使用而跳过、删除或缩小基础 TP；否则属于 Target Leakage。
 
 ### 3.3 Base Inventory Completeness Gate
 
-进入 Scenario Extraction 前，确认四份 Base Inventory 均已按全部输入资料处理，且未使用目标过滤、删除或缩小 inventory item。全部通过时设置 `BASE_INVENTORY_COMPLETE = TRUE`；否则设置 `BASE_INVENTORY_COMPLETE = FALSE`，必须先补齐 Base Inventory，不得交付最终 Scenario Extraction 结果。
+进入 Scenario Extraction 前，确认四份 Base Inventory 均已按全部输入资料处理，且未使用目标过滤、删除或缩小 inventory item。每个从 All Input Documents 识别出的明确 Relation Atom 必须归属于 Base Cross、Scenario 或 Pending / missing-input；不得已识别却没有承载，也不得只停留在 Config / Dynamic 描述中。Base Cross completeness 按生成过程集合 `Extracted Base Relation Atoms == Covered Base Relation Atoms` 判断，确认所有明确的 scenario-independent Relation Atom 均由 Base Cross lossless 承载；该集合不新增输出模型或 sheet。全部通过时设置 `BASE_INVENTORY_COMPLETE = TRUE`；否则设置 `BASE_INVENTORY_COMPLETE = FALSE`，必须先补齐 Base Inventory，不得交付最终 Scenario Extraction 结果。
 
 删除 Prompt 中目标名称后，四份 Base Inventory 必须完全相同。
 
@@ -239,7 +247,7 @@ Scenario expression 的 semantic source 分为两类：Base-derived semantic 已
 
 `Scenario Applicable Legality Set` 仅覆盖当前 Scenario 涉及的 Config Space / Dynamic Input applicable legality semantics / constraints，以及 applicable Base Cross relations 和输入资料明确的 scenario-specific legality relations。集合中的每个 legality semantic / relation 都必须在 Scenario 中表达；实际值、范围、联合条件及对应行为继续写入现有 `scenario_value_or_constraint`。Base-derived semantic 按其 Base TP 建立 `related_tp_id`；scenario-specific legality relation 不生成 Base Cross，也不要求 semantic-source TP_ID，`related_tp_id` 仅关联该 expression 实际依赖或约束的 Base verification object（若存在）。不得只摘录合法值而遗漏同一 Scenario 下成立的 negative / reserved / unsupported / conditional-invalid 等已定义语义。`Scenario legality completeness != Scenario dependency completeness`；当前不建立通用 Scenario dependency completeness。Register Access、Debug、Performance、Output Result 及其他 category 的场景关联继续按现有 Scenario Extraction 和对应 Category Rules 处理，不自动并入该集合，也不新增 dependency set、graph、mapping、字段或 sheet。
 
-当值的 legality 或 behavior 依赖其他 Config / Dynamic 条件时，必须表达输入资料明确给出的完整条件与结果，例如 `SRC1_SEL=0x06 && DATA_TYPE=FP32 -> legal`、`SRC1_SEL=0x06 && DATA_TYPE=BF16 -> CFG_ERROR`；不得只写该值及简短注释，也不得自行推断关系。
+当值的 legality 或 behavior 依赖其他 Config / Dynamic 条件时，必须表达输入资料明确给出的完整条件与结果，不得只写该值及简短注释，也不得自行推断关系。`scenario_value_or_constraint` 中的 legality、joint condition、resource limit、producer/consumer condition、count constraint、mutual exclusion 或 conditional result 均遵守 Global Boundaries 的 Constraint Expression Rule；一个可独立理解或判断的 scenario expression 单独成行，不得为减少 Scenario 行数合并 independent constraints。
 
 该 closure 不重新展开 Base coverage space：不复制完整 Base TP，不要求 Scenario 重新列出全部 Base values 或 bins，不要求 legal / reserved / unsupported / illegal 等类别逐项输出 `N/A`，不修改或收缩 Base Config / Dynamic / Cross TP，也不新增 Base-bin 到 Scenario-bin 的 mapping 字段或中间持久化模型。Base semantic / relation 在当前 Scenario 下明确不适用时无需输出；applicability 无法由输入资料唯一确定时，按 Scenario missing-input report 规则处理，不得猜测。
 
@@ -256,11 +264,13 @@ Scenario Extraction 必须检查目标 instruction / function / scenario 是否�
 
 Scenario legality 无法由输入资料唯一确定时，不得推断，自动输出对应 Scenario missing-input report，记录具体待确认问题、受约束对象和场景上下文。
 
-两类 report 相互独立：任意 TP 的 draft / blocked 缺失进入 lifecycle missing-input report；Scenario-specific legality 缺失进入对应 Scenario missing-input report。来源依据、traceability、Completeness Review、inventory-level missing、generation summary 和 completion summary 仅在用户明确要求时输出。
+Relation Atom 已明确识别但根据当前资料无法唯一判断 Base Cross / Scenario-specific ownership 时，自动输出独立 relation ownership missing-input report。记录当前已知的最具体逻辑 `relation`、缺少的 scope / applicability 定义 `missing_content`，以及可使 ownership 唯一确定的设计信息 `completion_condition`。此时尚无 TP，不输出 `lifecycle_status`，不生成 TP_ID，也不错误关联既有 draft / blocked TP；仅在存在 ownership Pending 时生成该 report。
+
+三类 report 相互独立：任意 TP 的 draft / blocked 缺失进入 lifecycle missing-input report；Scenario-specific legality 缺失进入对应 Scenario missing-input report；Relation Atom ownership 缺失进入 relation ownership missing-input report。来源依据、traceability、Completeness Review、inventory-level missing、generation summary 和 completion summary 仅在用户明确要求时输出。
 
 ### 3.7 Completeness Review
 
-仅在用户明确要求 review/report 时，基于既有 TP inventory 审查 Register Access、Config Space、Dynamic Input、Cross、Debug、Performance、Output Result 七个适用 category。每项标记 `covered`、`draft`、`blocked`、`not_applicable` 或 `missing`，并列出现有 TP ID、缺口或阻塞原因；没有明确多对象关系时 Cross 为 `not_applicable`。
+仅在用户明确要求 review/report 时，基于既有 TP inventory 审查 Register Access、Config Space、Dynamic Input、Cross、Debug、Performance、Output Result 七个适用 category。每项标记 `covered`、`draft`、`blocked`、`not_applicable` 或 `missing`，并列出现有 TP ID、缺口或阻塞原因。只有既不存在已判定为 scenario-independent 的 Relation Atom，也不存在 ownership unresolved 的 Relation Atom 时，Cross 才可标记为 `not_applicable`；存在 relation ownership Pending 时不得判定为 `not_applicable`，review 结果须引用或列出对应 relation ownership missing-input 作为未决项，不新增 review status，也不猜测最终 ownership。
 
 Completeness Review 只检查和报告，不修改、补充或重新生成已有 TP；发现 `missing` 只输出待办或缺失资料。
 
@@ -287,7 +297,7 @@ Completeness Review 只检查和报告，不修改、补充或重新生成已有
 每条 Scenario 关联至少包含 `related_tp_id`、对象角色、`scenario_value_or_constraint`、`why_relevant_to_scenario`、`scenario_application`。
 
 - `related_tp_id` 用于关联当前 Scenario expression 所依赖或约束的 Base TP，承担 Base TP traceability，不承担全部设计语义来源追溯。Base-derived semantic 指向提供该 semantic 的 Base Config / Dynamic TP；复用 scenario-independent Base Cross relation 时指向该 Base Cross TP；scenario-specific semantic 不要求 Base semantic source，仅在存在相关 Base verification object 时关联该对象。它不是设计资料 source reference、完整 semantic provenance、dependency list 或对象参与关系的机械枚举；不得为满足该字段生成 Base Cross、伪造 Base TP，或将参与对象宣称为 scenario-specific relation 的 semantic source。确需关联多个 Base TP 时，多个 TP_ID 一条一行。
-- `scenario_value_or_constraint` 表达当前 Scenario 的实际取值、范围或 constraint。输入资料已明确值语义时，必须按 `<value> /* <meaning> */` 附最小注释；多个值或 constraint 一条一行。Scenario legality 的允许值、禁止值、范围或联合条件统一写入该字段。
+- `scenario_value_or_constraint` 表达当前 Scenario 的实际取值、范围或 constraint。输入资料已明确值语义时，必须按 `<value> /* <meaning> */` 附最小注释；多个值或 independent constraint 一条一行，并遵守 Global Boundaries 的 Constraint Expression Rule。Scenario legality 的允许值、禁止值、范围、联合条件或对应行为统一写入该字段。
 - `why_relevant_to_scenario` 只说明该基础 TP 为什么与当前 Scenario 相关。
 - `scenario_application` 只说明该对象或约束在当前 Scenario 中起什么作用，不承载具体值、范围或联合条件，不重复 value semantics，不复制基础 TP 的 `verification_goal` 或 `coverage_strategy`，也不得只写“沿用基础 TP 定义的覆盖空间”“不重新定义 bins”等无场景语义信息。
 
@@ -295,12 +305,16 @@ Completeness Review 只检查和报告，不修改、补充或重新生成已有
 
 - lifecycle missing-input report：每条记录固定包含 `affected_tp_id`、`lifecycle_status`、`missing_content`、`completion_or_unblock_condition`。
 - Scenario missing-input report：每条记录包含具体待确认问题、受约束对象和场景上下文。
+- relation ownership missing-input report：每条记录固定包含 `relation`、`missing_content`、`completion_condition`，不包含 `lifecycle_status` 或 TP_ID。
 - inventory-level missing 或 Completeness Review report：按需独立输出，不混入 TP sheet，也不复制完整 TP inventory。
 
 ### 4.4 Excel Display Rules
 
+最终输出同时保证 semantic completeness、generation correctness 和人工 review readability。结构治理、去重、字段调整、格式简化或文字压缩不得造成信息能力、生成行为、Excel display 或人工 review 能力回退；减少文字、行数或 TP 数量不是独立优化目标，任何压缩都必须满足 lossless semantics 和 clear reviewability。展示规则只负责 presentation，不得反向改变 TP / Scenario 数据模型。
+
 - lifecycle 高亮：complete 正常显示且不特殊高亮；draft 使用统一黄色或琥珀色提醒型高亮；blocked 使用统一红色强警示高亮。至少覆盖 `lifecycle_status` 单元格；同一 workbook 的范围和样式保持一致。
 - Scenario `related_tp_id` 只引用一个 Base TP 时，沿用该 Base TP 的 lifecycle 高亮；引用多个 Base TP 时保留全部 TP_ID 并一条一行，单元格按 `blocked > draft > complete` 使用最高严重级别高亮。该展示不改变 Base TP lifecycle。
+- Scenario sheet 的 merge 按列独立判断：连续多行的 `related_tp_id` 内容完全相同时，纵向 merge 该列；包含多个 TP_ID 时，仅 TP_ID 集合和顺序均完全相同才允许 merge。object role 内容完全相同且连续时允许独立纵向 merge。即使各行的 `scenario_value_or_constraint`、relation branch 或 scenario semantic 不同，也不阻止相同 `related_tp_id` 或 object role 列的 merge；不同的 `scenario_value_or_constraint` 本身不得 merge，必须保持每个 independent expression 独立。merge 只影响展示，不删除 TP_ID，不改变每行 Scenario expression 的逻辑关联、lifecycle 或 `related_tp_id` 的 Base TP traceability 语义。
 - 文本包含中文分号 `；` 或英文分号 `;` 时，在分号处分行显示；只改变展示，不改变字段内容和语义。
 - 连续多行中 `why_relevant_to_scenario` 或 `scenario_application` 内容完全一致时允许纵向 merge；语义仅相近时不得合并。merge 只影响展示，不改变每行与 `related_tp_id` 的逻辑对应，也不得遮蔽或丢失 lifecycle 状态。
 - lifecycle missing-input report 在 Excel 中使用独立 sheet。
@@ -315,21 +329,22 @@ Completeness Review 只检查和报告，不修改、补充或重新生成已有
 4. Cross sheet。
 5. 以功能场景或指令作为入口时，每个命名 Scenario 的独立 `Scenario - <scenario_name>` sheet。
 6. 任一 Scenario-specific legality 无法唯一确定时，对应 Scenario missing-input report；不存在时不生成。
-7. Debug sheet。
-8. Performance sheet。
-9. Output Result sheet。
-10. 存在任意 draft / blocked TP 时，lifecycle missing-input report；不存在时不生成。
-11. 用户明确要求时，inventory-level missing 或 Completeness Review report。
+7. 存在 Relation Atom ownership Pending 时，relation ownership missing-input report；不存在时不生成。
+8. Debug sheet。
+9. Performance sheet。
+10. Output Result sheet。
+11. 存在任意 draft / blocked TP 时，lifecycle missing-input report；不存在时不生成。
+12. 用户明确要求时，inventory-level missing 或 Completeness Review report。
 
 ### 4.6 Final Gates
 
 交付前检查：
 
 - **Schema**：每个 TP、Scenario 和 report 均符合本 Output Contract，字段职责唯一，未新增字段体系或重复 category 字段。
-- **Base Inventory Completeness**：Register Access、Config Space、Dynamic Input、Cross 已按全部输入资料处理；适用对象均有 complete、draft 或 blocked TP，否则不得通过 Gate。
+- **Base Inventory Completeness**：Register Access、Config Space、Dynamic Input、Cross 已按全部输入资料处理；适用对象均有 complete、draft 或 blocked TP。所有明确 Relation Atom 均完成唯一处理：scenario-independent Atom 由 Base Cross lossless 承载，scenario-specific Atom 进入 Scenario，ownership unresolved Atom 必须全部进入 relation ownership missing-input，不得遗漏、猜测 Base Cross / Scenario ownership，或生成虚假 TP_ID；不得只停留在 Config / Dynamic 描述。对 Base Cross，`Extracted Base Relation Atoms == Covered Base Relation Atoms`；任一 ownership unresolved Atom 未进入 relation ownership missing-input 时不得通过 Gate。
 - **Target Isolation**：删除 Prompt 目标名称后四份 Base Inventory 保持相同；Scenario 未改写、裁剪、补充或重排基础 TP。
 - **Lifecycle Closure**：状态符合 Lifecycle；每个 draft / blocked TP 均有完整 lifecycle missing-input 记录，仅 mapping 为空未触发 draft。
 - **Scenario Isolation / Legality**：每个命名 Scenario 独立，Scenario 字段各守职责，Scenario legality 未进入或收缩 Base Config、Dynamic、Cross。分别检查：1) **Scenario semantic completeness**：由 Complete Base Inventory、All Input Documents 和 Target Scenario 确定的 applicable Base-derived 与 scenario-specific legality semantics / relations 是否全部表达，只有 `Scenario Covered Legality Set == Scenario Applicable Legality Set` 时通过；2) **Base TP traceability**：与 Base verification object 相关的 Scenario expression 是否通过 `related_tp_id` 正确关联对应 Base TP。不得把参与对象宣称为 semantic source，也不得要求 scenario-specific semantic 必须有 Base semantic-source TP。任何 applicable semantic / relation 未表达或 Base TP 关联错误时，`Scenario legality completeness = FAIL`，不得交付最终 workbook。该 closure 不代表 Scenario dependency completeness；applicability 无法唯一确定时不得猜测，并按现有规则生成独立 Scenario missing-input report。
-- **Coverage Integrity**：coverage strategy 与验证 intent、category、监测和测量边界一致；主动 negative verification target 使用普通 bins，仅在采样值本身被明确规定不应出现时使用 illegal_bins；error expectation 不决定 bin type。implementation inputs 与 implementation object mapping 未混用。
+- **Coverage Integrity**：coverage strategy 与验证 intent、category、监测和测量边界一致；Cross merge 必须 lossless，每个 independent branch 仍明确可见并映射到实际 coverage，不得以宽泛抽象概念或 bins 替代输入资料明确 relation。主动 negative verification target 使用普通 bins，仅在采样值本身被明确规定不应出现时使用 illegal_bins；error expectation 不决定 bin type。implementation inputs 与 implementation object mapping 未混用。
 - **No Inference**：未补充输入资料未定义的设计语义、行为、路径、采样、阈值、输出类别或 debug capability。
-- **Output Contract**：sheet 组成、schema、输出顺序、高亮、换行和 merge 均符合本章；若任一 Gate 不通过，不得交付。
+- **Output Contract**：sheet 组成、schema、输出顺序、高亮、换行和 merge 均符合本章；Cross / Scenario 中可形式化 constraint 使用逻辑表达，多个 independent constraint 一条一行，applicability、condition 与 result 对应清楚，未因文字压缩合并独立规则。Scenario 连续相同 `related_tp_id` 和相同 object role 分别按列 merge，不同 `scenario_value_or_constraint` 保持独立；display optimization 未改变底层数据关系。若任一 Gate 不通过，不得交付。

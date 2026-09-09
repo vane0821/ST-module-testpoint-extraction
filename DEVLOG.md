@@ -52,3 +52,95 @@ Base Cross 仍只允许 scenario-independent relations；TP category、granulari
 ### Pending
 
 `Scenario dependency completeness` 是否需要独立模型，当前不纳入 legality closure。
+
+## 2026-09-09 | Cross Relation Completeness and Review Readability
+
+### Problem
+
+明确的 multi-object relation 可能被遗漏，或只存在于 Config / Dynamic 描述而未形成 Cross；Base / Scenario relation ownership 判断不一致；多个具体 relation 可能被过度概括为宽泛 Cross；Cross `verification_goal` 退化成长段自然语言；Scenario 连续相同 `related_tp_id` 不再 merge，人工 review 可读性回退。
+
+### Root Cause
+
+Cross 缺少统一的 `Relation Extraction -> Ownership -> Lossless Merge -> Coverage Closure` 生成闭环；target-independent 被错误理解为 condition-free；结构治理过程中已有 display / review capability 未被完整保留。
+
+### Change
+
+建立生成时 Relation Atom 识别过程，明确 Base / Scenario ownership，建立 Cross completeness closure，限制 Cross lossless merge，恢复逻辑表达优先和具体 branch coverage，恢复 Scenario `related_tp_id` / object role Excel merge，并补充人工评审可读性约束。
+
+### Preserved Behavior
+
+TP category、其他 TP metamodel、Scenario source model `G(Complete Base Inventory, All Input Documents, Target Scenario)`、Scenario Applicable Legality Set、Scenario dependency completeness 当前边界、lifecycle、negative target / illegal_bins、coverage model、`coverage_strategy_mapping`、TP/Scenario schema、output order 和 Completeness Review 保持不变。
+
+### Validation
+
+重新检查同一输入集应满足：Config / Dynamic 中明确双对象 relation 可被识别；所有 scenario-independent relation 均有 Base Cross 承载；带 opcode / mode 条件的通用 relation 不因有条件而移入 Scenario；真正 scenario-specific relation 不污染 Base Cross；合并不丢 relation branch；Cross `verification_goal` 优先逻辑表达；coverage strategy 对应具体 branch；Scenario 连续相同 `related_tp_id` 恢复纵向 merge；merge 不改变底层 Scenario / lifecycle 数据。
+
+### Pending
+
+`Scenario dependency completeness` 是否需要独立模型，当前不纳入 legality closure。
+
+## 2026-09-09 | Relation Extraction, Constraint Expression and Review Readability
+
+### Problem
+
+Base Cross relation 提取不完整；Config / Dynamic 中已识别的 multi-object semantic 未必进入关系覆盖；Base / Scenario ownership 判断不一致；Cross lossless merge 不稳定；AI 可能为压缩文字把多个 independent constraints 合并成难读自然语言；可逻辑表达的 relation 可能退化成长段散文；relation ownership Pending 缺少正式 missing-input 落点；Scenario 相同 `related_tp_id` merge 能力回退。
+
+### Root Cause
+
+1. multi-object relation 缺少统一 Relation Extraction / Ownership source of truth。
+2. Cross completeness 过去以最终 TP 为中心，而不是以原始 Relation Atom 为中心。
+3. Skill 未明确规定简洁不能破坏 constraint structure。
+4. Missing-input model 未覆盖尚未形成 TP 的 ownership uncertainty。
+5. 结构治理过程中 display / review capability 未被完整保持。
+
+### Change
+
+统一 Relation Extraction，清理旧 multi-object relation 直接进入 Cross 的旁路规则，明确 Base Cross / Scenario-specific / Pending ownership，增加 relation ownership missing-input report，建立 lossless merge 和逐 constraint 逻辑表达规则，使 Cross 与 Scenario 共用可读 constraint expression 原则，建立 relation completeness closure，并恢复按列判断的 Scenario `related_tp_id` / object role merge。
+
+### Preserved Behavior
+
+TP category 与其他 TP model、Lifecycle、Coverage Model 的 implementation input / mapping 边界、negative target / illegal_bins、`coverage_strategy_mapping`、Scenario source model `G(Complete Base Inventory, All Input Documents, Target Scenario)`、Scenario Applicable Legality Set、Scenario dependency completeness 当前 pending、`related_tp_id` Base TP traceability、Register Access、Config、Dynamic、Debug、Performance、Output Result、TP/Scenario schema 和 Completeness Review 保持不变。原 output order 仅插入按需生成的 relation ownership missing-input report。
+
+### Validation
+
+一致性检查覆盖：Config 中双对象 relation 进入 Relation Extraction；Dynamic multi-object relation 不再绕过 Ownership；通用 opcode/mode 条件 relation 可进入 Base Cross；target-specific relation 不污染 Base Cross；ownership unresolved 有独立 missing-input；Relation Atom 合并保持 branch；independent constraints 一条一行；可形式化约束不退化成长段自然语言；count、mutual exclusion、membership 等表达可直接评审；coverage strategy 对应具体 branch；Scenario 相同 `related_tp_id` 恢复 merge；merge 不影响 `scenario_value_or_constraint` 的独立表达。
+
+### Pending
+
+`Scenario dependency completeness` 是否需要独立模型，当前不纳入 legality closure。
+
+## 2026-09-09 | Relation Atom Optional Applicability and Review Pending Handling
+
+### Problem
+
+Relation Atom 定义可能误导模型认为 `applicability_condition` 必填；存在 relation ownership Pending 时，Cross 可能被错误判为 `not_applicable`。
+
+### Root Cause
+
+Relation Atom 形式定义不够精确；Completeness Review 的 `not_applicable` 判据未考虑 unresolved ownership。
+
+### Change
+
+将 Relation Atom 定义收敛为 `[applicability_condition &&] joint_condition -> relation_or_result`，明确 applicability condition 可为空；Cross `not_applicable` 增加不存在 ownership Pending 的必要条件，并在 Pending 存在时引用对应 relation ownership missing-input。
+
+### Preserved Behavior
+
+其余模型、字段、流程、schema、coverage、Scenario、Excel display 和 output order 保持不变。
+
+## 2026-09-09 | Final Gate Decoupling and Cross Expression Alignment
+
+### Problem
+
+Final Gate 错误依赖可选 Completeness Review；Core Model 的 Cross 公式未同步可选 applicability condition。
+
+### Root Cause
+
+generation gate 与 optional review flow 职责混淆；上层 Core Model 与下层 Relation Atom 表达漂移。
+
+### Change
+
+Final Gate 改为直接检查所有 ownership unresolved Relation Atom 是否进入 relation ownership missing-input；Core Model 的 Cross 表达统一为 `[applicability_condition &&] joint_condition -> relation_or_result`。
+
+### Preserved Behavior
+
+其余 Relation、Scenario、Coverage、Lifecycle、Output 行为保持不变。
