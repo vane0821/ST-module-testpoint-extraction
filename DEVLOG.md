@@ -2,6 +2,68 @@
 
 本文件记录 skill 开发历史，不参与 runtime 规则解释。
 
+## 2026-09-11 | Remove Downstream Consumer Semantics
+
+### Problem
+
+TP Skill 混入 downstream testcase consumption 语义。
+
+### Root Cause
+
+structured bins 的用途被错误扩展为 Case consumer 规则。
+
+### Change
+
+TP Skill 只定义 TP / Scenario 输出要求；移除 parameter scan 与 downstream consumer 语义，并将 Scenario free 和 Parameter Disposition Closure 收敛为 Base TP、Base legal space 与三分类完整性检查。
+
+### Preserved Behavior
+
+structured bins、covergroup tracking、testcase 不替代 coverage tracking、free / inactive / constrained/fixed、Lifecycle、Relation Extraction / Ownership、Constraint Readability、Excel merge、Missing-input 和 Skill / Case Development 边界保持不变。
+
+### Validation
+
+Value/Input-Space Coverage Output Contract 与 Final Gate 只检查 TP 自身 coverage 定义和 tracking；Scenario free 只追溯 Base TP 与 Base legal space；未保留 parameter-scan consumer 或 downstream testcase generation 判断；Preserved Behavior 未回退。
+
+### Pending
+
+无。
+
+## 2026-09-11 | Generalize Value/Input-Space Coverage Contract
+
+### Problem
+
+当前 coverage model 已支持独立 value-space / input-space coverage，但权威 Contract 仍命名并限定为 Parameter Scan，导致 abstraction scope 与实际调用范围不一致。
+
+### Root Cause
+
+structured bins contract 最初从 parameter-scan 场景引入；恢复 value-space covergroup tracking 后，上位抽象未同步提升。
+
+### Change
+
+将 `Parameter Scan Output Contract` 统一提升为 `Value/Input-Space Coverage Output Contract`；独立 value/input-space coverage 成为上位 source of truth；parameter scan 保留为具体 downstream generation intent；structured bins 与 covergroup tracking 行为保持不变，并修正 Final Gate 中的 `coggverage` typo。
+
+### Preserved Behavior
+
+Config / Dynamic value-space coverage、structured bins、covergroup tracking、testcase stimulus construction、free 与 parameter-scan 的边界、Scenario disposition、Lifecycle、Relation Extraction、Constraint Readability、Excel display 和 Skill / downstream boundary 保持不变。
+
+## 2026-09-11 | Restore Value-Space Coverage Tracking Semantics
+
+### Problem
+
+结构治理后 Config / Dynamic value-space TP 的 coverage method 可从 covergroup 漂移为 testcase，导致 stimulus construction 与 coverage tracking 职责混淆。
+
+### Root Cause
+
+“verification method 不机械套模板”被过度放宽，误删了 value-space coverage 原有的 covergroup tracking 能力。
+
+### Change
+
+明确 stimulus construction 与 coverage tracking 分工；value-space / input-space 加 structured bins 默认由 covergroup tracking；testcase 可作为 stimulus construction，但不能替代 coverage tracking；behavior-only TP 继续按实际 intent 选择 method。
+
+### Preserved Behavior
+
+Parameter Scan Output Contract、structured bins、Lifecycle、Scenario disposition、Relation Extraction、Constraint Readability 和 Skill / downstream boundary 保持不变。
+
 ## 2026-09-11 | Dynamic Coverage and Scenario Missing-Input Consistency
 
 ### Problem
