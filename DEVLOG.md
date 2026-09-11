@@ -2,6 +2,46 @@
 
 本文件记录 skill 开发历史，不参与 runtime 规则解释。
 
+## 2026-09-11 | Dynamic Coverage and Scenario Missing-Input Consistency
+
+### Problem
+
+Dynamic Input 中残留 coverage strategy 默认包含 bins 的旧口径；Scenario missing-input 已支持 parameter disposition，但 Output Order 和 report summary 仍只描述 legality；semantic / relation 不适用规则可能被用于跳过 parameter disposition closure。
+
+### Root Cause
+
+Parameter Scan Output Contract 落地后，Dynamic Input 旧描述未完全清理；Missing-input Flow 扩展职责后 Output Contract 未同步；Scenario semantic applicability 与 parameter disposition applicability 的边界未显式区分。
+
+### Change
+
+Dynamic coverage strategy 改为映射实际 verification method，仅 parameter-scan 时要求 structured bins；Scenario missing-input 统一覆盖 legality 与 parameter disposition；明确 semantic / relation omission 不得绕过 parameter disposition closure。
+
+### Preserved Behavior
+
+Constraint Readability、Parameter Scan Output Contract、Scenario Parameter Disposition、Relation Extraction / Ownership、Lifecycle、Coverage Model、Excel merge 和 Skill / downstream boundary 保持不变。
+
+## 2026-09-11 | Parameter Disposition and Bin Semantics Cleanup
+
+### Problem
+
+free disposition 被错误绑定到 parameter-scan structured bins；explicit bin 规则可能诱导模型制造输入资料或 coverage intent 未定义的值；inactive/default 的抽象继承表述无法保证下游唯一解析最终约束。
+
+### Root Cause
+
+Scenario disposition 与 Base coverage strategy 的职责边界不够明确；bin 示例与生成要求未充分区分；inactive/default 共享规则缺少可直接判定的表达要求。
+
+### Change
+
+明确 free 只表示使用 Base legal space，并仅在对应 Base TP 已采用 parameter-scan strategy 时使用其 structured bins；将 explicit bins 收敛为输入资料或 coverage intent 明确要求的目标，格式示例不再构成模板；要求 inactive/default rule expression 自身唯一确定适用 parameter 集合、applicability condition 和每个 parameter 的最终约束。
+
+### Preserved Behavior
+
+其余 TP、Relation、Scenario、Coverage、Lifecycle、schema、Excel display 和 Output Order 行为保持不变。
+
+### Validation
+
+检查 free 不会反向创建 parameter-scan；非 parameter-scan Base TP 不强制 bins；未定义的 typical、special、representative value 或 semantic category 不会被生成；共享 inactive/default rule 可由现有 Scenario 表达直接且唯一解析，否则进入 Scenario missing-input report。
+
 ## 2026-09-09 | Scenario/Base Boundary and Coverage Semantics Cleanup
 
 ### Problem
@@ -144,3 +184,54 @@ Final Gate 改为直接检查所有 ownership unresolved Relation Atom 是否进
 ### Preserved Behavior
 
 其余 Relation、Scenario、Coverage、Lifecycle、Output 行为保持不变。
+
+## 2026-09-09 | Relation Extraction Execution and Output Regression Fix
+
+### Problem
+
+最终输出中的 explanation / behavior 大量使用英文；Scenario merge 规则存在但最终 workbook 未实际 merge；Relation Atom 模型存在，但 Base Cross extraction 仍明显不足。
+
+### Root Cause
+
+1. 中文规则只定义全局默认语言，没有定义 identifier 与 prose 的语言边界。
+2. merge 只定义 display rule，没有 post-generation workbook validation。
+3. Relation Extraction 只有抽象模型，没有 exhaustive execution pass，模型可能少提取后自行通过 completeness。
+
+### Change
+
+增加字段级 Language Rule；增加 transient exhaustive Relation Extraction Pass 和 `RELATION_EXTRACTION_COMPLETE` generation gate；限定 Cross completeness 只能在 extraction complete 后判断；为 Scenario merge 增加最终 workbook merged-range validation。
+
+### Preserved Behavior
+
+Relation Atom、Ownership、Lifecycle、Scenario source model、Scenario Applicable Legality Set、Coverage Model、negative bins、`related_tp_id`、TP/Scenario schema、Performance、Completeness Review 状态体系及 Cross 业务定义保持不变。
+
+### Validation
+
+回归检查覆盖：自然语言 explanation 默认中文；identifier、opcode、signal、error code 保持原文；Config 与 Dynamic 中所有 multi-object semantic 完成 relation scan；Base Cross 来自完整 Relation Extraction 而非主要关系总结；scenario-specific relation 正确 ownership；Cross 不做 Cartesian expansion；Scenario `related_tp_id` 和符合条件的 object role 实际出现在 merged-cell ranges；`scenario_value_or_constraint` 保持独立。
+
+## 2026-09-11 | Constraint Readability and Generation Input Contract
+
+### Problem
+
+count / set / cardinality relation 被过度公式化，人工 review 困难；最终表达可能出现 `...` 等不完整压缩；object role merge 存在 optional / mandatory 漂移；parameter-scan Config / Dynamic TP 缺少稳定 structured bins；Scenario 未完整说明 parameter disposition，omission 可能被误解释为 free / inactive；描述下游消费时存在侵入 Case implementation algorithm 的风险。
+
+### Root Cause
+
+1. “逻辑表达优先”被错误提升为“形式化程度优先”。
+2. Excel display rule 与 post-generation validation 存在口径漂移。
+3. legal space 与 coverage partition 职责没有完全分开。
+4. parameter-scan TP 尚未明确 structured bins 是 downstream-consumable output。
+5. Scenario legality closure 没有完整回答每个相关 parameter 在当前 Scenario 中如何被约束。
+6. “输出必须可消费”被错误扩展为“Skill 应定义 consumer implementation”。
+
+### Change
+
+将 Constraint Expression 改为 readability-first：simple relation 使用直接逻辑表达，complex count / resource / cardinality 优先结构化中文，禁止省略和复杂符号压缩；将 object role merge 统一为 mandatory；建立 Parameter Scan Output Contract，要求 parameter-scan complete TP 使用 explicit 与 residual/range structured bins；建立 Scenario Parameter Disposition Output Contract 和 Closure，定义 constrained/fixed、free、inactive，并将 unresolved disposition 接入现有 Scenario missing-input；`testcase-generation-ready` 仅表示输出充分且无歧义；明确排除 randc、iteration、testcase count、scan scheduling 等 Case implementation 规则。
+
+### Preserved Behavior
+
+Language Rule、Relation Extraction、Relation Ownership、Cross completeness、Lifecycle、negative target / illegal_bins、Scenario source model、Scenario Applicable Legality Set、`related_tp_id`、Performance、TP / Scenario schema、Output Order 和 Completeness Review 状态体系保持不变。
+
+### Validation
+
+一致性检查覆盖：simple relation 保持清晰逻辑表达；complex count/resource relation 使用可评审的结构化中文；最终 constraint 不使用省略；explanation / behavior 默认中文；`related_tp_id` / object role 在最终 workbook 中实际 merge；parameter-scan Config / Dynamic complete TP 提供 structured bins，special / typical / boundary explicit bins 与 residual legal space 清晰且一致；negative target 与 legal bins 分离；非 parameter-scan TP 不强制 bins；constrained/fixed、free、inactive 均可唯一识别且可追溯；Scenario omission 不推导 disposition；unresolved disposition 进入 Scenario missing-input；`testcase-generation-ready` 不包含下游算法含义；Relation Extraction exhaustive pass 未回退。
