@@ -2,6 +2,58 @@
 
 本文件记录 skill 开发历史，不参与 runtime 规则解释。
 
+## 2026-09-14 | Coverage Method Precedence and Field Responsibility
+
+### Problem
+
+Coverage Model 的通用 method 选择和内容完整性规则与 Register Access 的 category-specific fixed testcase method 冲突。
+
+### Root Cause
+
+通用规则未明确 category-specific method 的优先级，并要求 `coverage_strategy` 重复承载验证对象或取值信息。
+
+### Change
+
+明确 coverage method 默认由 verification intent 决定，Category Rules 已固定 method 时以 category-specific rule 为准；固定 method 本身可构成完整 `coverage_strategy`，对象、操作与预期行为留在 `verification_goal`，具体实现名称留在 `coverage_strategy_mapping`。
+
+### Preserved Behavior
+
+Register Access 的 testcase method、mapping、RESET / R / RW / RESERVED 粒度与功能边界，以及 Config / Dynamic structured bins、Cross、Scenario、Lifecycle 和 Output Contract 保持不变。
+
+### Validation
+
+Register Access 的 `coverage_strategy = testcase` 无需重复对象或访问动作，mapping 仍为 `<module>_reg_access_<access_type>_test`；无 category-specific rule 时仍由 verification intent 选择 method；其他 category 无语义变化。
+
+### Pending
+
+无。
+
+## 2026-09-14 | Register Access Reset, Reserved, and Testcase Mapping
+
+### Problem
+
+RESET TP 可能未直接实例化实际 reset/default value；RESERVED access 缺少独立 register-level target；Register Access 混入模块功能行为，且 coverage method 与 testcase mapping 不统一。
+
+### Root Cause
+
+Register Access 的 access property 与 module functional behavior 边界不够明确；RESET、RESERVED 和 coverage mapping 的生成约束未形成闭环。
+
+### Change
+
+要求 RESET 直接展开实际 reset/default value；新增每 register 一个 RESERVED TP，并将 `write no effect / read as 0` 定义为无需输入资料逐 register 重复声明的固定 access semantic；Register Access 只承载访问语义；全部 Register Access TP 固定使用 testcase，并按 access type 共用 `<module>_reg_access_<access_type>_test`。该 mapping 是 Register Access complete TP 的 category-specific required output，不改变其他 category 的通用 Lifecycle 规则。
+
+### Preserved Behavior
+
+寄存器表顺序、RESET register-level、R / RW field-level、单 TP 单 access target、Lifecycle、Missing-input、TP_ID 连续 index、其他 category、Config/Dynamic coverage、Language、Constraint Readability 和 Excel display 保持不变。
+
+### Validation
+
+检查 RESET 实际值及目标隔离；识别 RESERVED field 后无需额外 semantic 声明即可生成每 register 恰好一条 RESERVED TP，并验证 write no effect / read as 0；R / RW 不含模块功能行为；全部 Register Access TP 使用 testcase，同 access type mapping 相同，complete TP 不缺失 mapping，且不展开 testcase implementation；其他 category 的 mapping 与 Lifecycle 语义无变化。
+
+### Pending
+
+无。
+
 ## 2026-09-11 | Remove Downstream Consumer Semantics
 
 ### Problem
