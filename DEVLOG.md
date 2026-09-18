@@ -2,6 +2,448 @@
 
 本文件记录 skill 开发历史，不参与 runtime 规则解释。
 
+## 2026-09-17 | Cross Negative and Illegal Bin Boundary
+
+### Problem
+
+Cross Contract 提供 `illegal cross bins` 格式，但未定义 negative combination 与 illegal sampling state 的边界，导致需要主动验证错误行为的组合可能被写成命中即报错的 illegal bin。
+
+### Root Cause
+
+Cross 的组合 DSL 缺少与上位 Value/Input-Space negative bin semantics 一致的 category-specific 落地规则。
+
+### Change
+
+主动验证报错、忽略、降级或其他已定义行为的 invalid / reserved / unsupported / forbidden 组合使用普通 cross bin；仅当输入资料明确规定组合在当前 sampling domain 中不应出现时使用 illegal cross bin。影响 partition 的 legality 或行为无法唯一确定时标记 draft。
+
+### Preserved Behavior
+
+Cross 固定使用 cross coverage；REF / scoreboard 结果判定、Cross 对象模型、关系表达、bin DSL、selector 限制、Lifecycle、Cross Skill Draft、schema 及其他 category 的 negative bin 规则保持不变。
+
+### Validation
+
+Observed Behavior Change 仅为 Cross negative combination 的 bin-type 判定与缺失输入处理。Cross Contract 与 regression 使用同一规则，并与上位 negative bin semantics 一致；Final Coverage Gate 继续通过 Contract 验收，Preserved Behavior 未回退。
+
+### Pending
+
+无。
+
+## 2026-09-17 | Cross Coverage and REF Responsibility Boundary
+
+### Problem
+
+Cross 可在 testcase、assertion 和 cross coverage 之间选择，导致同一关系既由 Cross assertion 判定、又由 REF / scoreboard 判定，且 testcase stimulus 被误当成 Cross verification method。
+
+### Root Cause
+
+Cross 的组合覆盖职责与下游 stimulus、结果预测和 checker 职责没有形成排他边界。
+
+### Change
+
+Cross 固定使用 cross coverage；`verification_goal` 保留完整关系语义，`cross bins` 确认多对象组合发生。testcase 只负责产生组合，REF / scoreboard 负责计算预期并判定 DUT 结果，二者不进入 Cross `coverage_strategy`。
+
+### Preserved Behavior
+
+Cross 对象模型、Relation Extraction、Base / Scenario ownership、关系分支、紧凑 cross-bin DSL、Lifecycle、Cross Skill Draft、schema 和 implementation TODO 规则保持不变。其他 category 的 testcase / assertion 选择不变。
+
+### Validation
+
+Observed Behavior Change 仅为 Cross method 从可选 testcase / assertion / cross coverage 收敛为固定 cross coverage。Cross Category Rules、Cross Expression Contract、Final Coverage Gate 与 regression 使用同一职责边界；关系语义仍完整保留，Preserved Behavior 未回退。
+
+### Pending
+
+无。
+
+## 2026-09-17 | Implementation TODO Lifecycle Boundary
+
+### Problem
+
+Cross 关系、验证目标和 assertion 方法已经完整时，仅因 HDL signal / path 等实现绑定尚未提供，TP 仍会被标记 draft，混淆了设计语义完整性与 SV 实现就绪度。
+
+### Root Cause
+
+通用 Lifecycle 将所选策略依赖的所有 implementation input 都作为 complete 的前置条件，未区分 category-required implementation input 与非必需 implementation binding。
+
+### Change
+
+设计语义、验证目标和 method 完整时，仅缺非 category-required implementation binding 的 TP 保持 complete；`coverage_strategy` 只写 method，`coverage_strategy_mapping` 使用 `TODO（missing <具体 implementation input>）`，脚本不生成对应 SV 并输出实现待办。Category-required implementation input / mapping 缺失仍按 Lifecycle 判定。
+
+### Preserved Behavior
+
+缺 condition、result、behavior 或其他 design semantic 的 TP 仍为 draft；Register Access 的 category-required mapping 不放宽；Cross Skill Draft 仍只处理表达模型或脚本转换能力缺口。TP 粒度、Cross 表达、schema、missing-input report 类型和其他 category 行为不变。
+
+### Validation
+
+Observed Behavior Change 仅为非 category-required implementation binding 缺失时由 draft 改为 complete，并由 `coverage_strategy_mapping` 承载 implementation TODO。Lifecycle、字段职责、Coverage Responsibility、Dynamic / Cross 局部规则、Input Processing、Output Contract、Final Gate 与 regression 使用同一边界；Preserved Behavior 未回退。
+
+### Pending
+
+无。
+
+## 2026-09-17 | Cross Expression Governance
+
+### Problem
+
+Cross 使用抽象 Relation Atom 和宽泛 lossless merge 描述，缺少直观、紧凑且可由脚本确定性展开的表达；直接写 SV `binsof/intersect` 又会使 Excel 冗长。输入关系完整但现有模型无法表达时，也容易被误标为 TP draft 或被生硬套用。
+
+### Root Cause
+
+Cross semantic expression 与 implementation syntax 未分层，也没有定义稳定的目标 DSL、cross-bin DSL 和 Skill 自身模型缺口处理。
+
+### Change
+
+在全局输出原则中明确 TP 必须简洁、人工可读、可由脚本确定性生成 SV，且不在 Excel 展开大量 implementation syntax。本轮仅治理 Cross：支持换行缩进的 `if` 条件关系和直接多对象等式；cross bins 使用简洁条件 DSL，由脚本展开为 `binsof/intersect`；新增 Cross Skill Draft report。
+
+### Preserved Behavior
+
+其他 category 的业务规则不变。Cross 的多对象边界、Base / Scenario ownership、Relation Extraction 完整性、No Inference、TP Lifecycle、coverage branch 完整性和 schema 保持不变。Cross Skill Draft 不替代 design missing-input，也不生成伪 TP_ID。
+
+### Validation
+
+Observed Behavior Change 仅为全局表达质量要求，以及 Cross 粒度、表达格式、cross coverage 序列化和 unsupported-model 处理。Cross Category Rules、Input Processing、Missing-input Flow、Output Contract、Final Gate 与 regression 使用同一模型。
+
+### Pending
+
+无。
+
+## 2026-09-16 | Compact Scriptable Coverage Strategy
+
+### Problem
+
+structured coverage 虽要求可直接实现，但输出模板包含 method、coverage space、target、sample event 和嵌套 bins 等多层信息，重复当前 TP 行已有对象信息，Excel 中冗长且不便评审。
+
+### Root Cause
+
+将 coverage implementation schema 误放入 TP 的 `coverage_strategy`，没有区分“脚本所需的最小 bin 输入”和“脚本生成的 covergroup 结构”。
+
+### Change
+
+structured coverage 收敛为保留实际换行的 `cover bins` / `illegal bins` block；每个 bin 一行，直接给出 name、具体 value 或 `[lower:upper]` range。target 从当前 TP 行取得，默认采样和 implementation structure 由脚本处理；只有明确的特殊 sample event 与 ignore space 才额外输出。
+
+### Preserved Behavior
+
+bin partition、boundary、typical、legal residual、negative coverage、illegal/ignore 语义、地址 64-value threshold、越界行为、Lifecycle 和 implementation mapping 职责保持不变。简化格式不减少 coverage 信息，也不把预期报错的 negative input 改为 illegal bin。
+
+### Validation
+
+Observed Behavior Change 仅为 `coverage_strategy` 的序列化和显示格式；Config、Dynamic、共享 Contract、Excel display、Final Coverage Gate 与 regression 均接受同一 bin block，字段职责无冲突。
+
+### Pending
+
+无。
+
+## 2026-09-16 | Shared Address Coverage Profile
+
+### Problem
+
+Config Space 与 Dynamic Input 的地址对象缺少共同、确定的输出规则；大地址空间容易产出描述性解释，小地址空间也没有明确何时逐地址展开。
+
+### Root Cause
+
+Address 仅作为通用 numeric dimension 处理，未建立跨 category 的识别规则、展开阈值和固定输出模板。
+
+### Change
+
+在 Value/Input-Space Coverage Contract 中建立唯一 Address Coverage Profile：识别明确 address 语义或独立 `地址` / `addr` / `address` token；合法地址值不超过 64 时逐地址建 bin，超过 64 时固定输出边界、典型地址、legal residual 和完整可表示越界 partitions。Config 与 Dynamic 仅路由到该共享 Profile。
+
+### Preserved Behavior
+
+Config 与 Dynamic 的对象模型、TP 粒度、schema、category ownership 和 Scenario 行为不变；越界行为、sample event 和设计 semantic 仍不得猜测；无可表示越界空间时不制造越界值；地址 coverage 不扩展为 path-level 通路验证。
+
+### Validation
+
+Observed Behavior Change 仅为两类 address TP 共用 64-value threshold 与固定输出模板。共享 Contract、两类 Category Rules、Lifecycle、Final Coverage Gate 与两份 regression 一致，未发现额外行为变化。
+
+### Pending
+
+无。
+
+## 2026-09-16 | Numeric Dynamic Coverage Closure
+
+### Problem
+
+Dynamic numeric/address TP 仍可能用“覆盖输入资料定义的范围”“完整 address bins”等占位表达，未稳定输出上下边界、典型值、越界空间和越界行为；coverage strategy 不足以直接实现，enum mapping 的显示也可能挤在同一行。
+
+### Root Cause
+
+共享 Value/Input-Space Contract 禁止自动选择 typical value，且未定义 numeric coverage profile；Dynamic Category Rules 只要求完整范围，没有把数值目标、partition、negative behavior、Lifecycle 和 Excel display 闭合为同一模型。
+
+### Change
+
+为独立 numeric range/address coverage 建立确定性 profile：显式 lower/upper boundary、按中点公式选择 interior typical coverage sample、legal residual、完整可表示的 below/above-range negative partitions，并要求输入资料定义越界行为。缺少越界行为时标记 draft。Enum/format/mode mapping 改为 value-to-semantic 且逐行显示。
+
+### Preserved Behavior
+
+typical sample 不构成 DUT semantic；special semantic、越界行为、采样方式和 mapping 仍不得猜测；无可表示越界空间时不制造越界值；negative target 仍使用普通 bins，只有输入资料规定采样值本身不应出现时才使用 illegal_bins。Dynamic TP 粒度、category 名称、schema、relation ownership 和 Scenario 行为不变。
+
+### Validation
+
+Observed Behavior Change 仅包含 numeric/address 目标与 coverage partition 的确定化、越界行为缺失时的 draft 判定，以及 enum mapping 的逐行显示。共享 Contract、Dynamic Category Rules、Lifecycle、Output Display、Final Coverage Gate 和 regression 使用同一模型；未发现额外行为变化。
+
+### Pending
+
+无。
+
+## 2026-09-16 | Dynamic Input Dimension Model
+
+### Problem
+
+Dynamic Input 以“单参数完整 input space”为粒度，range、data、address、format、mode 等不同验证维度容易被压进同一 TP；分类边界、输入要求、Lifecycle 和输出排序也缺少统一结构。
+
+### Root Cause
+
+旧模型区分了 parameter 与 coverage space，但没有把 verification dimension 提升为 TP 粒度的一部分，导致对象定义、Base Inventory 和 structured coverage contract 使用不同粒度。
+
+### Change
+
+Dynamic Input 改为一个 `parameter × verification dimension` 一个 TP；明确随请求携带的分类依据、输入要求、生成边界、各 dimension 的目标表达、Lifecycle、排序和 TP_ID 中 `coverage_space` 的职责，并同步 Base Inventory、Relation Extraction、Value/Input-Space Coverage Contract 与 regression。
+
+### Preserved Behavior
+
+Dynamic Input 仍只覆盖单参数 input semantic；多个 parameter 不合并，多参数关系仍进入 Relation Extraction；Base Inventory 不受 Scenario 裁剪；完整 bit range、No Inference、structured coverage contract、现有 schema、mapping 可选性和 Scenario parameter disposition 行为保持不变。
+
+### Validation
+
+Observed Behavior Change 仅为 TP 粒度从单 parameter 调整为 `parameter × verification dimension`，以及由该粒度直接决定的 inventory、目标和排序行为。Affected Rule Set 内的 Core Model、Category Rules、Lifecycle、coverage reference、Output Contract 与 regression 使用同一模型；Preserved Behavior 未回退。
+
+### Pending
+
+无。
+
+## 2026-09-16 | Core Model Impact Closure
+
+### Problem
+
+Core Model 迁移 structured coverage 详细规则后，Config、Dynamic 和 Output Contract Gate 仍残留旧职责展开，导致新 Contract 之外继续存在部分重复定义。
+
+### Root Cause
+
+上一轮优先完成第一章压缩和 Final Coverage Gate 路由，但没有彻底清理所有 downstream caller 的重复说明。
+
+### Change
+
+Config 与 Dynamic 只保留“何时读取 Contract”的 category routing 和各自对象规则；structured bins、tracking 与非适用行为统一由 Contract 和上位 Coverage Responsibility 定义；Output Contract Gate 删除与 Coverage Integrity 重复的 Contract 检查。
+
+### Preserved Behavior
+
+Config / Dynamic 对象模型、是否需要独立 value/input-space coverage 的判断、structured bins、tracking、Lifecycle、schema、Final Coverage Gate 和其他 category 行为保持不变。
+
+### Validation
+
+检查 SKILL 全部 structured coverage 调用点后，详细语义仅存在于 Contract；Core Model、Config、Dynamic 和 Final Gate 只承担各自 routing / acceptance 职责。Observed Behavior Change 为空，Affected Rule Set 已闭合。
+
+### Pending
+
+Dynamic Input 章节自身的业务结构治理仍作为独立 change。
+
+## 2026-09-16 | Core Model Responsibility Compression
+
+### Problem
+
+第一章同时承载通用模型、category-specific 行为、详细 structured bins contract 和部分 Output Contract，形成第二套 Category Rules，与第 2、4 章重复且加载成本过高。
+
+### Root Cause
+
+持续演进时将 coverage regression 直接追加到 Core Model，未维持“通用职责、category 行为、输出 schema、条件性详细 contract”的分层。
+
+### Change
+
+将第一章收敛为 Scope、Category Object Model、Common Field Responsibilities、Lifecycle、Coverage Responsibility and Precedence、TP_ID、Global Output Principles；删除 category-specific 重复；将 structured bins、tracking、negative bin semantics 和对应 Lifecycle Gate 迁移为按需读取的 `references/value-input-space-coverage.md` 唯一详细定义；Final Gate 改为引用该 Contract。
+
+### Preserved Behavior
+
+七类 TP 对象模型、Lifecycle、coverage method precedence、stimulus / tracking 分工、structured bins completeness、explicit / residual partition、negative target / illegal_bins / ignore_bins、Dynamic coverage target、mapping responsibility、TP_ID、语言、constraint readability、Category Rules、schema 和 final gate 行为保持不变。
+
+### Validation
+
+Observed Behavior Change 仅为规则职责与加载位置调整；详细 coverage semantics 已完整迁移并由 SKILL 和 Final Gate 路由。Core Model 不再重复第 2、4 章职责，Category Rules 与 Output Contract 未被改写，Preserved Behavior 未回退。
+
+### Pending
+
+Dynamic Input 及后续 category 章节的结构治理作为独立 change。
+
+## 2026-09-16 | Config Space Execution Closure and Cross-Document Semantics
+
+### Problem
+
+Config Space 虽已建立单字段 ownership 与目标格式，但章节仍缺少与 Register Access 同级的输入、粒度、Lifecycle、排序和输出闭环；字段局部缺少 semantic 时可能被过早判为 draft，忽略其他输入资料中的分散定义。
+
+### Root Cause
+
+Config 仍以原则描述为主，没有形成可逐项执行的 category model；输入判断停留在字段当前位置，没有明确全部输入资料范围内的 semantic closure。
+
+### Change
+
+将 Config Space 重构为“输入要求、生成范围、TP 粒度与行为、Coverage 与 Lifecycle、排序与输出”；增加跨文档 semantic 归并，要求在全部输入资料中建立 value-to-semantic mapping；明确 selector、opaque candidate-ID、complete / draft / blocked 和 mapping optional 的判定。
+
+### Preserved Behavior
+
+Config 单字段粒度、完整 value space、access-only RESERVED 边界、reserved / unsupported encoding、multi-object Relation Ownership、structured bins、covergroup tracking、schema、Base Inventory target isolation及其他 category 行为保持不变。
+
+### Validation
+
+Config 与 Register Access 达到相同章节成熟度但未强制相同 verification method；跨文档归并只使用已有事实；selector semantic 缺失不会伪装 complete；mapping optional 与通用 Lifecycle 一致。Affected Rule Set 中 Category Rules、Input Processing、Relation Extraction、Lifecycle、Output Contract 与 regression 无冲突。
+
+### Pending
+
+Dynamic Input 的章节结构治理作为独立后续 change。
+
+## 2026-09-16 | Config Space Single-Field Ownership and Goal Format
+
+### Problem
+
+Config `verification_goal` 混合单字段值空间、条件行为和跨字段关系，同一 relation 在多个 Config TP 中重复；输出包含“编码空间为”“输入资料定义的候选来源”等无判定价值文字；只有访问语义的 RESERVED field 被错误保留为长期 draft Config TP。
+
+### Root Cause
+
+Config 单对象职责与 Relation Ownership 没有在 category source of truth 中形成排他边界，value-to-semantic mapping 也缺少稳定的 reviewer-facing 表达。
+
+### Change
+
+Config 固定使用一行一个 `<value / range> -> <semantic>`；单字段条件使用完整 `if / else`；multi-object semantic 只进入 Relation Extraction 与 Ownership，不复制进 Config TP；只有 register access semantic 的 RESERVED field 不进入 Config，而配置字段内部的 reserved / unsupported encoding 继续保留。
+
+### Preserved Behavior
+
+Config 单字段粒度、完整 value space、Lifecycle、value-space structured bins、covergroup tracking、schema、连续 index、Base Inventory target isolation、Cross / Scenario ownership 和其他 category 行为保持不变。
+
+### Validation
+
+Config TP 可独立读出当前字段全部值及单字段语义；multi-object relation 由 Cross / Scenario 唯一承载；access-only RESERVED 不再制造 Config draft；reserved encoding 未被误删。Affected Rule Set 中 Category Rules、Relation Extraction、Base Inventory、Lifecycle、Output Contract 与 regression 使用同一模型。
+
+### Pending
+
+Dynamic Input 的目标表达与冗余治理作为独立后续 change。
+
+## 2026-09-15 | Separate RW and RESERVED Traceability with Shared RAW Evidence
+
+### Problem
+
+上一版为避免重复执行而删除 RESERVED TP，导致 RESERVED 覆盖目标失去独立 TP_ID 和 completeness traceability。
+
+### Root Cause
+
+“共享一次 testcase execution”被错误等同为“共享一个 TP identity”，混淆了验证目标追踪与验证实现复用。
+
+### Change
+
+同一 register 的 RW 与 RESERVED 各自保留 TP_ID，但共用完整 RAW verification goal、testcase method 和 `<module>_reg_rw_test` mapping；最终 Excel 纵向合并三个共享列，TP_ID 与 lifecycle_status 保持独立。
+
+### Preserved Behavior
+
+四组固定全宽 wdata、整体 expected rdata 计算、RESET assertion、R / RO 与其他 access property 边界、Lifecycle、schema、顺序、连续 index 及其他 category 行为保持不变。
+
+### Validation
+
+RW 与 RESERVED 均具有独立 TP traceability，且没有重复 testcase 或重复展示相同 RAW goal；Excel merge 仅改变展示，不删除 TP_ID 或改变 lifecycle。
+
+### Pending
+
+R / RO 与其他特殊 access property 是否未来并入同一全寄存器 RAW 模型，作为独立后续 change。
+
+## 2026-09-15 | Fixed-Pattern RW and RESERVED RAW Closure
+
+### Problem
+
+RW pattern 被预先按 RW mask 裁剪，导致 RESERVED 位没有真正接收写入；RW 与 RESERVED 被拆为两个 TP，但实际由同一个 register RAW testcase 完成。
+
+### Root Cause
+
+TP 模型按字段属性拆分，而 testcase 的实际判定对象是固定全宽 wdata 作用于整个寄存器后的整体 rdata。
+
+### Change
+
+含 RW field 的 register 将 RW 与 RESERVED 合为一个 RAW TP；固定使用全宽全 0、全 1、`01` 交织和 `10` 交织四组 wdata，不按 RW mask 裁剪，并逐组按全部 access property 计算整体 expected rdata。此类 TP 统一映射 `<module>_reg_rw_test`；仅无 RW 时保留纯 RESERVED TP。
+
+### Preserved Behavior
+
+RESET 的整体值检查与 assertion method、R / RO 的独立属性检查、纯 RESERVED 覆盖、其他 access property 粒度、Lifecycle、mapping 必需性、TP schema、寄存器顺序、连续 index、功能边界及其他 category 行为保持不变。
+
+### Validation
+
+四组 wdata 均为固定全宽 pattern，RESERVED 位实际被写入；expected rdata 同时体现 RW 写入生效与 RESERVED 读回为 0。无法唯一计算整体 rdata 时进入 Lifecycle，未引入猜测；Category Rules、Lifecycle、Output Contract 与 regression 一致。
+
+### Pending
+
+R / RO 与其他特殊 access property 是否未来并入同一全寄存器 RAW 模型，作为独立后续 change。
+
+## 2026-09-15 | Register Reset Assertion and Concise Access Goals
+
+### Problem
+
+RESET TP 重复抄写 field 明细，且使用 testcase 与适合持续检查复位状态的 assertion 不一致；普通访问目标的展示仍偏规则说明，不够像可执行检查项。
+
+### Root Cause
+
+RESET 的证据来源与最终输出形式没有分离；Register Access coverage method 被错误统一为 testcase；RAW 的比较范围未显式限定到对应 access 位域。
+
+### Change
+
+RESET 最终只输出整体寄存器 reset value，并固定使用 assertion；整体值必须由输入资料直接给出或由覆盖完整 register width 的字段值无歧义拼出。R / RO、RW、RESERVED 改为简洁的属性检查表达；RW 使用 RAW 测试并只比较对应 RW 位域。RESET mapping 使用 `<module>_reg_reset_assertion`，其他 access type 保持 testcase mapping。
+
+### Preserved Behavior
+
+每个 register + access type 的聚合粒度、字段与 bit range 完整性、RESET 和 RESERVED 的 register-level 边界、其他 access property 粒度、Lifecycle、mapping 必需性、TP schema、寄存器顺序、连续 index、功能边界及其他 category 行为保持不变。
+
+### Validation
+
+Observed Behavior Change 仅包含 RESET 展示形式与 coverage method，以及各 access goal 的简洁表达。RESET 整体值仍可追溯到完整输入；RW 未错误比较其他 access type 位域；Category Rules、Lifecycle、Output Contract 与 regression 一致，Preserved Behavior 未回退。
+
+### Pending
+
+Coverage Model、Scenario、Cross、其余 demo、模板与 Skill 目录结构的治理仍作为独立后续 change。
+
+## 2026-09-15 | Register Access Aggregation and Reviewer-Facing Output
+
+### Problem
+
+普通 R / RO、RW 按 field 拆成多条 TP，与同一 access type 共用 testcase 的执行模型不一致，并产生大量重复行；最终 `verification_goal` 使用内部公式式英文，人工评审不直观；Register Access 的最小输入未在 category source of truth 中直接闭合。
+
+### Root Cause
+
+TP 粒度被绑定到 field，而不是实际独立 access target；内部行为模型直接泄漏为最终展示文本；category-specific 生成规则缺少与粒度对应的输入清单。
+
+### Change
+
+将普通 R / RO、RW 收敛为每个 register + access type 一条 TP，并完整列出对应 field / bit range；最终 `verification_goal` 改为可直接评审的中文；Register Access mapping 统一为 `<module>_reg_<access_type>_test`；在 Register Access 唯一权威章节增加与各 access target 对应的最小输入要求。
+
+### Preserved Behavior
+
+RESET 和 RESERVED 保持 register-level；其他 access property 仍按输入资料定义的真实对象粒度独立生成；Base Inventory、Lifecycle、Register Access 固定 testcase method、mapping 必需性、TP schema、寄存器顺序、全 sheet 连续 index、功能边界及其他 category 行为保持不变。
+
+### Validation
+
+Observed Behavior Change 仅包含 R / RO、RW 聚合粒度、最终展示语言、mapping 命名和显式输入闭合；同一 access type 的字段没有丢失或跨 register 合并。Category Rules、Lifecycle、Output Contract 与 regression 使用同一模型，Preserved Behavior 未回退，Affected Rule Set 内未发现语义冲突。
+
+### Pending
+
+Coverage Model、Scenario、Cross、其余 demo、模板与 Skill 目录结构的治理仍作为独立后续 change。
+
+## 2026-09-15 | Register Access Rule Governance
+
+### Problem
+
+Register Access 的当前规则被项目实例、历史解释和 Final Gate 重复定义包围，正向生成路径不清晰，同一行为需要在 Category Rules、Lifecycle 与 Final Gates 多处维护。
+
+### Root Cause
+
+Register Access category-specific completeness 条件没有被通用 Lifecycle 直接容纳；Final Gates 重新展开 Category Rules；项目实例和 testcase implementation 边界重复留在局部规则中。
+
+### Change
+
+将 Register Access 的对象、粒度、固定访问模型、coverage method、mapping 和顺序收敛到 Category Rules，并重排为“生成范围、TP 粒度与行为、Coverage 与 Lifecycle、排序与输出”四个可扫描区块；Lifecycle 统一容纳 category-required 字段；Final Gates 改为引用 Category Rules；删除 Register Access mapping 的项目实例和已由 Scope 定义的 testcase implementation 重复说明。
+
+### Preserved Behavior
+
+RESET 保持 register-level 并直接展开实际 reset/default value；R / RW 保持 field-level；每个含 RESERVED field 的 register 恰好生成一个 register-level RESERVED TP，完整列出 field / bit range 并验证 `write no effect / read as 0`；其他 access property 按真实对象粒度生成；不同 access target 分别生成；Register Access 只承载访问语义；全部 Register Access TP 使用 testcase，同一 access type 共用 `<module>_reg_access_<access_type>_test`；mapping 仍是 complete 的必需项；寄存器顺序和全 sheet 连续 index 不变。其他 category、Scenario、Cross、Coverage Model、Output Contract 和 Excel display 行为不变。
+
+### Validation
+
+Intended Delta 仅改变规则组织、表达与可扫描性；Register Access 的对象识别、粒度、verification goal、coverage method、mapping、lifecycle、schema、顺序与 gate 语义均保持。Affected Rule Set 内由 Category Rules 提供唯一业务定义，Lifecycle 接受 category-required 字段，Final Gates 只引用相应规则；章节已形成清晰执行顺序，未发现非预期行为变化。
+
+### Pending
+
+Coverage Model、Scenario、Cross、其余 demo、模板与 Skill 目录结构的治理作为独立后续 change。
+
 ## 2026-09-14 | Coverage Method Precedence and Field Responsibility
 
 ### Problem
